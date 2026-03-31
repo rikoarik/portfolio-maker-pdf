@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Plan {
+  id                       String   @id @default(cuid())
+  slug                     String   @unique
+  name                     String
+  stripePriceId            String?
+  midtransPackageCode      String?
+  maxProjects              Int      @default(5)
+  maxScreenshotsPerProject Int      @default(20)
+  maxAiAnalysesPerPeriod   Int      @default(15)
+  maxPdfExportsPerPeriod     Int      @default(10)
+  periodDays               Int      @default(30)
+  sortOrder                Int      @default(0)
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  users                    User[]
+}
+
+model User {
+  id                String             @id @db.Uuid
+  email             String             @unique
+  name              String?
+  role              String             @default("USER")
+  tier              String             @default("FREE")
+  planId            String?
+  plan              Plan?              @relation(fields: [planId], references: [id], onDelete: SetNull)
+  paymentCustomerId String?
+  currentPeriodEnd  DateTime?
+  aiUsageCount      Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  projects          PortfolioProject[]
+  usageCounters     UsageCounter[]
+  auditLogsAsActor  AuditLog[]         @relation("AuditActor")
+}
+
+model UsageCounter {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodKey String
+  metric    String
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodKey, metric])
+  @@index([userId, periodKey])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventId     String   @unique
+  payload     Json
+  processedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String?  @db.Uuid
+  actor        User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  action       String
+  targetUserId String?  @db.Uuid
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId])
+}
+
+model PortfolioProject {
+  id           String             @id @default(cuid())
+  userId       String?            @db.Uuid
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title        String             @default("")
+  locale       String             @default("id")
+  jobFocus     String             @default("")
+  industry     String             @default("")
+  draftPayload Json               @default("{}")
+  status       String             @default("draft")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  screenshots  ScreenshotAsset[]
+  jobs         Job[]
+}
+
+model ScreenshotAsset {
+  id              String           @id @default(cuid())
+  projectId       String
+  project         PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sortOrder       Int              @default(0)
+  storageKey      String
+  mime            String
+  width           Int?
+  height          Int?
+  analysisStatus  String           @default("pending")
+  createdAt       DateTime         @default(now())
+  analysisResults AnalysisResult[]
+}
+
+model AnalysisResult {
+  id          String          @id @default(cuid())
+  assetId     String
+  asset       ScreenshotAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  model       String
+  rawJson     Json            @default("{}")
+  summaryText String          @default("")
+  errorCode   String?
+  createdAt   DateTime        @default(now())
+}
+
+model Job {
+  id        String           @id @default(cuid())
+  type      String
+  projectId String
+  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status    String           @default("queued")
+  error     String?
+  progress  Int              @default(0)
+  payload   Json             @default("{}")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
