@@ -70,6 +70,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       draft,
       project.locale,
       instruction,
+      undefined,
+      {
+        jobFocus: project.jobFocus || undefined,
+        industry: project.industry || undefined,
+        templateId: draft.templateId,
+        portfolioPersona: draft.portfolioPersona,
+      },
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Regenerate failed";

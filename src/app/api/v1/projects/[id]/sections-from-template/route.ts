@@ -87,6 +87,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       projectSummary: draft.projectSummary,
       template,
       existing: draft.sections ?? [],
+      portfolioPersona: draft.portfolioPersona,
     });
     sections = out.sections;
     testResults = out.testResults;

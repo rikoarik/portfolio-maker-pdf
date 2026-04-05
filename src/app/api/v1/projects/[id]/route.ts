@@ -112,6 +112,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (typeof incoming.templateId === "string") {
       merged.templateId = incoming.templateId || undefined;
     }
+    if (typeof incoming.portfolioPersona === "string") {
+      merged.portfolioPersona = incoming.portfolioPersona || undefined;
+    }
     if (Array.isArray(incoming.prototypeLinks)) {
       const nextLinks = incoming.prototypeLinks.map((l: Record<string, unknown>) => ({
         label: String(l.label ?? ""),

@@ -38,6 +38,7 @@ export async function generateSectionsWithAi(args: {
   projectSummary: string;
   template: TemplateDefinition;
   existing: DraftSection[];
+  portfolioPersona?: string;
 }): Promise<{
   sections: DraftSection[];
   prototypeLinks?: PrototypeLink[];
@@ -48,11 +49,16 @@ export async function generateSectionsWithAi(args: {
 
   const lang = args.locale === "id" ? "Indonesian" : "English";
   const supports = args.template.supports;
+  const personaLine = args.portfolioPersona?.trim()
+    ? `Portfolio persona: ${args.portfolioPersona.trim()} (align vocabulary and examples with this role).`
+    : "";
   const prompt = `You write portfolio case-study sections for job applications.
 Job focus/role: ${args.jobFocus}
 Industry/domain: ${args.industry || "general"}
 Project title: ${args.title || "Untitled"}
 Project summary (may be empty): ${args.projectSummary || ""}
+Template kind: ${args.template.label} — ${args.template.description}
+${personaLine}
 
 Template sections (keep this order):
 ${args.template.sections.map((s) => `- ${s.templateKey}: ${s.label}`).join("\n")}

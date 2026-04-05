@@ -65,6 +65,8 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
         {
           roleFocus: project.jobFocus || undefined,
           industry: project.industry || undefined,
+          templateId: draft.templateId,
+          portfolioPersona: draft.portfolioPersona,
         },
       );
 
@@ -139,6 +141,8 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
       {
         roleFocus: project.jobFocus || undefined,
         industry: project.industry || undefined,
+        templateId: draft.templateId,
+        portfolioPersona: draft.portfolioPersona,
       },
     );
     draft.projectSummary = agg.projectSummary;
@@ -176,6 +180,7 @@ export async function runSingleAssetAnalyze(
   if (!asset) throw new Error("Screenshot not found");
 
   const project = asset.project;
+  const draft = parseDraft(project.draftPayload);
   const buf = await readUploadFile(asset.storageKey);
   const vision = await analyzeScreenshot(
     buf,
@@ -186,6 +191,8 @@ export async function runSingleAssetAnalyze(
     {
       roleFocus: project.jobFocus || undefined,
       industry: project.industry || undefined,
+      templateId: draft.templateId,
+      portfolioPersona: draft.portfolioPersona,
     },
   );
 
@@ -198,7 +205,6 @@ export async function runSingleAssetAnalyze(
     },
   });
 
-  const draft: DraftPayload = parseDraft(project.draftPayload);
   const screenDraft = {
     assetId: asset.id,
     title: vision.screen_title,

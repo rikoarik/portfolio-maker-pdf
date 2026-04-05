@@ -8,7 +8,7 @@ import { getMe } from "@/lib/api";
 export function AppHeader() {
   const router = useRouter();
   const meQ = useQuery({
-    queryKey: ["me"],
+    queryKey: ["auth_me"],
     queryFn: getMe,
     staleTime: 60_000,
   });

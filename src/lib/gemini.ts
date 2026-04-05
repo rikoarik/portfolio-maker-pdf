@@ -52,7 +52,26 @@ export function parseVisionJson(text: string): VisionJson {
 export type PortfolioVisionContext = {
   roleFocus?: string;
   industry?: string;
+  /** Draft template id (e.g. backend_api, uiux) — steers vocabulary for evidence images */
+  templateId?: string;
+  /** Onboarding persona id — same intent as templateId for narrative */
+  portfolioPersona?: string;
 };
+
+function portfolioAngleDescription(ctx?: PortfolioVisionContext): string {
+  const tid = ctx?.templateId?.trim();
+  const pid = ctx?.portfolioPersona?.trim();
+  const id = tid || pid || "";
+  if (id === "backend_api")
+    return "This evidence is likely APIs, infrastructure, diagrams, dashboards, or logs—emphasize reliability, data flow, and technical decisions.";
+  if (id === "frontend_web" || id === "mobile")
+    return "This evidence is likely UI implementation—emphasize components, UX patterns, platform, and implementation quality.";
+  if (id === "uiux")
+    return "This evidence is likely design work—emphasize user problems, flows, and design decisions.";
+  if (id === "product")
+    return "This evidence may include metrics, roadmaps, or product UI—emphasize outcomes and decisions.";
+  return "Adapt emphasis to the user's job focus and industry below.";
+}
 
 export async function analyzeScreenshot(
   imageBytes: Buffer,
@@ -76,16 +95,20 @@ export async function analyzeScreenshot(
   if (portfolioContext?.industry?.trim()) {
     ctxParts.push(`Industry / domain: ${portfolioContext.industry.trim()}.`);
   }
+  const angle = portfolioAngleDescription(portfolioContext);
   const ctx =
     ctxParts.length > 0 ?
-      `\nContext: ${ctxParts.join(" ")} Describe the screen in terms relevant to that role (product, design, marketing, engineering, etc.), not only code.`
+      `\nContext: ${ctxParts.join(" ")} ${angle}`
+    : angle ?
+      `\nContext: ${angle}`
     : "";
-  const prompt = `You analyze UI screenshots for a professional portfolio (any job type: engineering, design, product, marketing, etc.).
+  const prompt = `You analyze images for a professional portfolio (screenshots of apps, websites, API tools, diagrams, dashboards, design files, etc.).
 Return ONLY valid JSON (no markdown) with this shape:
 {"screen_title":"string","features":["short bullet", "..."],"tech_guess":["React","..."],"ux_notes":"one paragraph"}
 Rules:
-- features: max 5 items, concrete UI elements visible.
-- tech_guess: inferred stack/tools if visible, else empty array (can be design tools, analytics, not only code).
+- features: max 5 items, concrete visible elements (UI widgets, chart types, endpoints, diagram blocks, etc.).
+- tech_guess: inferred stack/tools/platforms if visible, else empty array.
+- ux_notes: for non-UI images, summarize what the evidence shows and why it matters for the role.
 - Write in language: ${locale === "id" ? "Indonesian" : "English"}.
 ${ctx}${extra}`;
 
@@ -118,10 +141,12 @@ export async function aggregateProjectNarrative(
     portfolioContext?.roleFocus?.trim() || portfolioContext?.industry?.trim() ?
       `\nAudience: ${portfolioContext?.roleFocus ?? "general professional"}. Domain: ${portfolioContext?.industry ?? "general"}.`
     : "";
-  const prompt = `You merge UI screen notes into a portfolio project summary.
+  const angle = portfolioAngleDescription(portfolioContext);
+  const prompt = `You merge per-image portfolio notes into one project summary.
 Screens:
 ${lines.join("\n")}
 ${focus}
+Portfolio angle: ${angle}
 
 Return ONLY valid JSON: {"project_summary":"2-4 sentences","tech_stack":["unique","skills"]}
 Language: ${locale === "id" ? "Indonesian" : "English"}.
@@ -141,17 +166,40 @@ tech_stack: skills/tools relevant to the role (can include soft tools, design, a
   };
 }
 
+export type RegenerateContext = {
+  jobFocus?: string;
+  industry?: string;
+  templateId?: string;
+  portfolioPersona?: string;
+};
+
 export async function regenerateDraftWithInstruction(
   draft: DraftPayload,
   locale: string,
   instruction: string,
   requestedModelName?: string,
+  portfolioContext?: RegenerateContext,
 ): Promise<DraftPayload> {
   const gen = getClient();
   const model = gen.getGenerativeModel({ model: modelName(requestedModelName) });
+  const ctxBits: string[] = [];
+  if (portfolioContext?.jobFocus?.trim()) {
+    ctxBits.push(`Job focus: ${portfolioContext.jobFocus.trim()}`);
+  }
+  if (portfolioContext?.industry?.trim()) {
+    ctxBits.push(`Industry: ${portfolioContext.industry.trim()}`);
+  }
+  if (portfolioContext?.templateId?.trim() || portfolioContext?.portfolioPersona?.trim()) {
+    ctxBits.push(
+      `Portfolio template/persona: ${portfolioContext.templateId ?? portfolioContext.portfolioPersona ?? ""}`,
+    );
+  }
+  const ctxLine =
+    ctxBits.length > 0 ? `\nContext for tone and emphasis: ${ctxBits.join(". ")}.` : "";
   const prompt = `You improve portfolio / case-study draft content for job applications (any profession: design, marketing, PM, engineering, etc.).
 Current JSON draft:
 ${JSON.stringify(draft)}
+${ctxLine}
 
 User instruction:
 ${instruction}

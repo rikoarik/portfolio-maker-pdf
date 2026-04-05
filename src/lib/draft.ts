@@ -34,6 +34,8 @@ export type DraftPayload = {
   sections?: DraftSection[];
   /** Selected template id (role-based), used to seed/generate sections. */
   templateId?: string;
+  /** Onboarding persona (uiux, frontend_web, …) or "skipped"; drives copy & AI context. */
+  portfolioPersona?: string;
   /** Optional labeled prototype links (Figma, Framer, etc.) */
   prototypeLinks?: PrototypeLink[];
   /** Optional freeform test results / design validation notes */
@@ -168,6 +170,10 @@ export function parseDraft(raw: unknown): DraftPayload {
     sections,
     templateId:
       typeof j.templateId === "string" ? j.templateId : undefined,
+    portfolioPersona:
+      typeof j.portfolioPersona === "string"
+        ? j.portfolioPersona
+        : undefined,
     prototypeLinks,
     testResults:
       typeof j.testResults === "string" ? j.testResults : undefined,

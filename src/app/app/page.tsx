@@ -163,6 +163,19 @@ export default function AppProjectsPage() {
               </span>
             ) : null}
           </p>
+          {projects.length > 0 && !selectionMode ? (
+            <p className="mt-3 max-w-xl text-sm text-zinc-600">
+              Mau menggabungkan beberapa proyek dalam satu PDF? Klik{" "}
+              <button
+                type="button"
+                className="font-medium text-indigo-600 underline hover:text-indigo-800"
+                onClick={() => setSelectionMode(true)}
+              >
+                Pilih gabungan PDF
+              </button>
+              .
+            </p>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-3">
