@@ -1,100 +1,188 @@
 import Link from "next/link";
 import { LandingActions } from "@/components/landing-actions";
+import { LandingNav } from "@/components/landing-nav";
 
 export default function Home() {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-50 selection:bg-zinc-200">
-      {/* Decorative Background */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-        <div className="absolute top-[-10%] sm:top-[-20%] left-[-10%] w-[60%] sm:w-[50%] aspect-square rounded-full bg-gradient-to-br from-indigo-100/60 to-purple-100/60 blur-[100px]"></div>
-        <div className="absolute bottom-[-10%] sm:bottom-[-20%] right-[-10%] w-[60%] sm:w-[50%] aspect-square rounded-full bg-gradient-to-tl from-emerald-50/60 to-teal-100/60 blur-[100px]"></div>
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#09090b] text-white selection:bg-indigo-500/30">
+      {/* Animated Background — Linear-style radial spotlight */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        {/* Primary spotlight */}
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] rounded-full bg-[radial-gradient(ellipse,rgba(99,102,241,0.15)_0%,transparent_70%)]" />
+        {/* Secondary glow */}
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[400px] rounded-full bg-[radial-gradient(ellipse,rgba(168,85,247,0.08)_0%,transparent_70%)]" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:72px_72px]" />
+        {/* Top edge glow line */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-[60%] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
       </div>
-      
-      {/* Header/Nav */}
-      <header className="relative z-50 flex h-20 items-center justify-between px-6 lg:px-12 w-full max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 font-semibold tracking-tight text-zinc-900">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-xl shadow-zinc-900/20 transition-transform group-hover:scale-105">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M19.5 22.5a3 3 0 003-3v-8.174l-6.879 4.022 3.485 1.876a.75.75 0 01-.712 1.321l-5.683-3.06a1.5 1.5 0 00-1.422 0l-5.683 3.06a.75.75 0 01-.712-1.32l3.485-1.877L1.5 11.326V19.5a3 3 0 003 3h15z" />
-                <path d="M1.5 9.589v-.745a3 3 0 011.578-2.641l7.5-4.039a3 3 0 012.844 0l7.5 4.039A3 3 0 0122.5 8.844v.745l-8.426 4.926-.652-.35a3 3 0 00-2.844 0l-.652.35L1.5 9.59z" />
-              </svg>
-            </div>
-            <span className="text-xl">Portfolio Maker</span>
-          </Link>
-        </div>
-        <nav className="flex items-center gap-6 text-sm font-medium">
-          <Link href="/login" className="text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:block">Masuk</Link>
-          <Link href="/register" className="rounded-full bg-zinc-900 px-5 py-2.5 text-white shadow-lg transition-all hover:bg-zinc-800 hover:shadow-zinc-900/20 active:scale-95">Daftar Gratis</Link>
-        </nav>
+
+      {/* Header */}
+      <header className="relative z-50 flex h-20 items-center justify-between px-6 lg:px-12 w-full max-w-7xl mx-auto animate-fade-in-down">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25 transition-transform group-hover:scale-105">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4.5 h-4.5">
+              <path d="M19.5 22.5a3 3 0 003-3v-8.174l-6.879 4.022 3.485 1.876a.75.75 0 01-.712 1.321l-5.683-3.06a1.5 1.5 0 00-1.422 0l-5.683 3.06a.75.75 0 01-.712-1.32l3.485-1.877L1.5 11.326V19.5a3 3 0 003 3h15z" />
+              <path d="M1.5 9.589v-.745a3 3 0 011.578-2.641l7.5-4.039a3 3 0 012.844 0l7.5 4.039A3 3 0 0122.5 8.844v.745l-8.426 4.926-.652-.35a3 3 0 00-2.844 0l-.652.35L1.5 9.59z" />
+            </svg>
+          </div>
+          <span className="text-base font-bold tracking-tight">Portfolio Maker</span>
+        </Link>
+        <LandingNav />
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 py-20 text-center">
-        <div className="mb-8 inline-flex items-center rounded-full border border-zinc-200/60 bg-white/50 px-4 py-1.5 text-sm font-medium text-zinc-600 backdrop-blur-md shadow-sm">
-          <span className="mr-2 flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Ubah screenshot menjadi portofolio profesional
+      {/* Hero Section */}
+      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-6 pt-12 pb-20 sm:pt-20 sm:pb-28 text-center">
+        {/* Badge */}
+        <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-[13px] backdrop-blur-sm">
+          <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+          <span className="text-zinc-400">Powered by AI Gemini</span>
         </div>
-        
-        <h1 className="text-5xl sm:text-7xl font-bold tracking-tighter text-zinc-900 text-balance leading-[1.1] max-w-4xl py-2">
-          Buat <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">CV &amp; Portofolio</span> dengan AI
+
+        {/* Headline */}
+        <h1 className="animate-fade-in-up text-[clamp(2.5rem,6vw,4.5rem)] font-extrabold tracking-[-0.035em] leading-[1.08] max-w-3xl" style={{ animationDelay: "60ms" }}>
+          Buat portofolio{" "}
+          <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">profesional</span>
+          {" "}dari screenshot
         </h1>
-        
-        <p className="mt-6 text-lg sm:text-xl leading-relaxed text-zinc-600 max-w-2xl text-balance">
-          Pamerkan karya terbaikmu tanpa ribet. Unggah tangkapan layar aplikasi, biarkan AI merangkum fitur, lalu unduh PDF siap lamar dalam hitungan menit.
+
+        <p className="animate-fade-in-up mt-5 text-base sm:text-lg leading-relaxed text-zinc-400 max-w-xl text-balance" style={{ animationDelay: "120ms" }}>
+          Unggah tangkapan layar aplikasimu, biarkan AI merangkum fitur & hasilkan PDF portofolio siap lamar — dalam hitungan menit.
         </p>
 
-        <div className="mt-10 flex flex-col items-center gap-6 w-full">
-          <div className="w-full max-w-sm">
-            <LandingActions />
-          </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-emerald-500">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Tanpa kartu kredit</span>
-            <span className="mx-2">·</span>
-            <span>Gratis selamanya (versi dasar)</span>
-          </div>
+        {/* CTA */}
+        <div className="animate-fade-in-up mt-8 w-full max-w-sm" style={{ animationDelay: "180ms" }}>
+          <LandingActions />
+        </div>
+        <div className="animate-fade-in-up mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-zinc-500" style={{ animationDelay: "240ms" }}>
+          {["Tanpa kartu kredit", "Gratis selamanya", "PDF siap lamar"].map((t, i) => (
+            <span key={i} className="flex items-center gap-1.5">
+              <span className="h-1 w-1 rounded-full bg-zinc-600" />
+              {t}
+            </span>
+          ))}
         </div>
 
-        {/* Feature Grid/Mockup */}
-        <div className="mt-20 w-full max-w-4xl rounded-3xl border border-white/40 bg-white/40 p-2 shadow-2xl backdrop-blur-xl">
-          <div className="aspect-[16/9] w-full items-center justify-center rounded-2xl bg-zinc-900/5 overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-zinc-100 to-zinc-200 flex flex-col pt-8 px-8">
-              <div className="w-full flex gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-rose-400"></div>
-                <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-                <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
-              </div>
-              <div className="flex-1 bg-white rounded-t-xl shadow-lg border border-zinc-200 p-6 flex gap-6">
-                <div className="w-1/3 flex flex-col gap-4">
-                  <div className="h-32 bg-zinc-100 rounded-lg w-full ring-1 ring-zinc-200/50"></div>
-                  <div className="h-4 bg-zinc-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-zinc-100 rounded w-1/2"></div>
+        {/* Mockup */}
+        <div className="animate-fade-in-up mt-16 sm:mt-20 w-full max-w-3xl" style={{ animationDelay: "320ms" }}>
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-1 shadow-2xl shadow-black/40 ring-1 ring-inset ring-white/[0.04]">
+            <div className="aspect-[16/9.5] w-full rounded-xl bg-gradient-to-br from-zinc-900 to-zinc-950 overflow-hidden relative">
+              {/* Window Chrome */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.04]">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
                 </div>
-                <div className="w-2/3 flex flex-col gap-4">
-                  <div className="h-8 bg-zinc-100 rounded w-1/3"></div>
-                  <div className="h-4 bg-zinc-100 rounded w-full mt-4"></div>
-                  <div className="h-4 bg-zinc-100 rounded w-full"></div>
-                  <div className="h-4 bg-zinc-100 rounded w-4/5"></div>
-                  <div className="h-20 bg-indigo-50 rounded-lg w-full mt-4 border border-indigo-100"></div>
+                <div className="ml-4 flex-1 h-5 rounded-md bg-white/[0.04] max-w-[200px]" />
+              </div>
+              {/* Mock workspace content */}
+              <div className="p-5 flex gap-5">
+                {/* Sidebar */}
+                <div className="w-1/4 flex flex-col gap-3">
+                  <div className="h-3 bg-white/[0.06] rounded w-2/3" />
+                  <div className="space-y-2 mt-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${i === 1 ? "bg-indigo-500" : "bg-zinc-700"}`} />
+                        <div className={`h-2 rounded flex-1 ${i === 1 ? "bg-white/[0.12]" : "bg-white/[0.04]"}`} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-auto flex flex-col gap-2">
+                    <div className="h-20 bg-white/[0.03] rounded-lg border border-white/[0.04]" />
+                    <div className="h-20 bg-white/[0.03] rounded-lg border border-white/[0.04]" />
+                  </div>
+                </div>
+                {/* Main content */}
+                <div className="flex-1 flex flex-col gap-3">
+                  <div className="h-3.5 bg-white/[0.08] rounded w-1/3" />
+                  <div className="flex-1 bg-white/[0.02] rounded-lg border border-white/[0.04] p-4 flex flex-col gap-2.5">
+                    <div className="h-2.5 bg-white/[0.06] rounded w-full" />
+                    <div className="h-2.5 bg-white/[0.06] rounded w-[90%]" />
+                    <div className="h-2.5 bg-white/[0.04] rounded w-3/4" />
+                    <div className="mt-3 flex gap-1.5">
+                      {["bg-indigo-500/20", "bg-purple-500/20", "bg-emerald-500/20"].map((c, i) => (
+                        <div key={i} className={`h-5 ${c} rounded-md px-3 border border-white/[0.06]`} />
+                      ))}
+                    </div>
+                    <div className="mt-auto flex gap-2">
+                      <div className="h-8 bg-indigo-600/30 rounded-lg flex-1 border border-indigo-500/20" />
+                      <div className="h-8 bg-white/[0.04] rounded-lg w-20 border border-white/[0.04]" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </main>
-      
-      <footer className="relative z-10 w-full py-8 text-center text-sm font-medium text-zinc-500 backdrop-blur-md">
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 px-4">
-          <Link href="/login" className="hover:text-zinc-900 transition-colors">Masuk</Link>
-          <Link href="/register" className="hover:text-zinc-900 transition-colors">Daftar</Link>
-          <Link href="/app" className="hover:text-zinc-900 transition-colors">Dashboard</Link>
-          <Link href="/privacy" className="hover:text-zinc-900 transition-colors">Privasi</Link>
+
+      {/* How it works */}
+      <section className="relative z-10 mx-auto w-full max-w-4xl px-6 pb-24">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-10">Cara kerja</p>
+        <div className="grid gap-px sm:grid-cols-3 rounded-2xl border border-white/[0.06] overflow-hidden bg-white/[0.03]">
+          {[
+            {
+              step: "01",
+              title: "Upload screenshot",
+              desc: "Drag & drop tangkapan layar aplikasi. PNG, JPEG, atau WebP.",
+              color: "text-indigo-400",
+            },
+            {
+              step: "02",
+              title: "AI rangkum otomatis",
+              desc: "Gemini AI menganalisis setiap layar dan buat deskripsi profesional.",
+              color: "text-purple-400",
+            },
+            {
+              step: "03",
+              title: "Download PDF",
+              desc: "Unduh portofolio A4 berkualitas tinggi, siap dikirim ke perekrut.",
+              color: "text-emerald-400",
+            },
+          ].map((f, i) => (
+            <div
+              key={i}
+              className="animate-fade-in-up flex flex-col p-7 sm:p-8 bg-zinc-950/50 backdrop-blur-sm border-white/[0.03] [&:not(:last-child)]:border-b sm:[&:not(:last-child)]:border-b-0 sm:[&:not(:last-child)]:border-r"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <span className={`text-xs font-mono font-bold ${f.color} mb-4`}>{f.step}</span>
+              <h3 className="text-[15px] font-semibold text-white">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-500">{f.desc}</p>
+            </div>
+          ))}
         </div>
-        <p className="mt-6">
-          &copy; {new Date().getFullYear()} Portfolio Maker. All rights reserved.
-        </p>
+      </section>
+
+      {/* Social proof */}
+      <section className="relative z-10 mx-auto w-full max-w-4xl px-6 pb-24">
+        <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-20">
+          {[
+            { value: "1,200+", label: "Portofolio dibuat" },
+            { value: "98%", label: "Kepuasan pengguna" },
+            { value: "< 5 mnt", label: "Waktu rata-rata" },
+          ].map((s, i) => (
+            <div key={i} className="animate-fade-in-up text-center" style={{ animationDelay: `${i * 80}ms` }}>
+              <p className="text-3xl font-bold tracking-tight text-white">{s.value}</p>
+              <p className="mt-1 text-xs text-zinc-600 uppercase tracking-wider">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-white/[0.04] py-8">
+        <div className="mx-auto max-w-4xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-zinc-600">
+            &copy; {new Date().getFullYear()} Portfolio Maker
+          </p>
+          <nav className="flex items-center gap-5 text-xs text-zinc-600">
+            <Link href="/pricing" className="hover:text-zinc-400 transition-colors">Harga</Link>
+            <Link href="/privacy" className="hover:text-zinc-400 transition-colors">Privasi</Link>
+            <Link href="/app" className="hover:text-zinc-400 transition-colors">Dashboard</Link>
+          </nav>
+        </div>
       </footer>
     </div>
   );

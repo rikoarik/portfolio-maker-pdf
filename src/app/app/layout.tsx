@@ -6,9 +6,9 @@ export default function AppAreaLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-gradient-to-b from-zinc-50 to-white">
+    <div className="flex min-h-full flex-1 flex-col bg-[#fafafa]">
       <AppHeader />
-      <div className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6">
+      <div className="mx-auto w-full max-w-5xl flex-1 px-4 sm:px-6 pb-16 pt-6">
         {children}
       </div>
     </div>

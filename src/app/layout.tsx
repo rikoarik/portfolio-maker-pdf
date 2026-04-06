@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -14,9 +15,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio Maker",
+  title: "Portfolio Maker — Buat CV & Portofolio dengan AI",
   description:
-    "Buat dokumen portofolio PDF dari screenshot aplikasi dengan bantuan AI Gemini.",
+    "Ubah screenshot aplikasi menjadi portofolio PDF profesional dalam hitungan menit. Didukung AI Gemini untuk menghasilkan teks berkualitas tinggi.",
+  keywords: ["portfolio", "CV", "AI", "PDF", "portofolio", "maker"],
 };
 
 export default function RootLayout({
@@ -27,7 +29,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} h-full`}
     >
       <body className="flex min-h-full flex-col font-sans antialiased">
         <Providers>{children}</Providers>
