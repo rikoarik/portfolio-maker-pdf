@@ -65,6 +65,9 @@ function formatClientApiError(e: unknown): string {
     if (e.code === "gemini_unconfigured") {
       return "Layanan AI sedang belum tersedia di server. Hubungi admin atau coba lagi nanti.";
     }
+    if (e.code === "storage_unconfigured") {
+      return e.message;
+    }
     if (e.code === "no_screenshots") {
       return "Unggah minimal 1 screenshot dulu sebelum analisis atau export.";
     }

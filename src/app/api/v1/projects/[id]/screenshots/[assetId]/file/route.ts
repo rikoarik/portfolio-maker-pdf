@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { jsonError } from "@/lib/http";
-import { readUploadFile } from "@/lib/storage";
+import {
+  StorageNotConfiguredForServerlessError,
+  readUploadFile,
+} from "@/lib/storage";
 import { ensureProjectAccess } from "@/lib/project-access";
 
 type Ctx = { params: Promise<{ id: string; assetId: string }> };
@@ -25,7 +28,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     return jsonError(404, "not_found", "Screenshot not found");
   }
 
-  const buffer = await readUploadFile(asset.storageKey);
+  let buffer: Buffer;
+  try {
+    buffer = await readUploadFile(asset.storageKey);
+  } catch (e) {
+    if (e instanceof StorageNotConfiguredForServerlessError) {
+      return jsonError(503, e.code, e.message);
+    }
+    throw e;
+  }
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": asset.mime,

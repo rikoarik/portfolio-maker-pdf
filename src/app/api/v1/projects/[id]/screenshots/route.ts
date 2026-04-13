@@ -6,7 +6,11 @@ import {
   MAX_SCREENSHOTS_PER_PROJECT,
 } from "@/lib/constants";
 import { jsonError } from "@/lib/http";
-import { storageKeyForProject, writeUploadFile } from "@/lib/storage";
+import {
+  StorageNotConfiguredForServerlessError,
+  storageKeyForProject,
+  writeUploadFile,
+} from "@/lib/storage";
 import { clientKeyFromRequest, rateLimit } from "@/lib/rate-limit";
 import { RATE_LIMIT_UPLOAD } from "@/lib/constants";
 import { getRequestId } from "@/lib/api-context";
@@ -14,9 +18,22 @@ import { logApi } from "@/lib/logger";
 import { assertCanAddScreenshots, QuotaExceededError } from "@/lib/quota";
 import { ensureProjectAccess } from "@/lib/project-access";
 import { resolveScreenshotMime } from "@/lib/image-mime";
-import sharp from "sharp";
+
+export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+async function readImageDimensions(
+  buf: Buffer,
+): Promise<{ width?: number; height?: number }> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(buf, { failOn: "none" }).metadata();
+    return { width: meta.width, height: meta.height };
+  } catch {
+    return {};
+  }
+}
 
 function extFromMime(mime: string): string {
   if (mime === "image/png") return "png";
@@ -27,6 +44,37 @@ function extFromMime(mime: string): string {
 export async function POST(req: NextRequest, ctx: Ctx) {
   const requestId = await getRequestId();
   logApi("info", "upload_started", { requestId, path: "POST screenshots" });
+
+  try {
+    return await handlePostScreenshots(req, ctx, requestId);
+  } catch (e) {
+    if (e instanceof StorageNotConfiguredForServerlessError) {
+      logApi("error", "upload_failed", {
+        requestId,
+        path: "POST screenshots",
+        extra: { reason: "storage_unconfigured" },
+      });
+      return jsonError(503, e.code, e.message);
+    }
+    const msg = e instanceof Error ? e.message : String(e);
+    logApi("error", "upload_failed", {
+      requestId,
+      path: "POST screenshots",
+      extra: { reason: "exception", message: msg.slice(0, 300) },
+    });
+    return jsonError(
+      500,
+      "upload_failed",
+      "Gagal mengunggah file. Periksa log server atau konfigurasi penyimpanan.",
+    );
+  }
+}
+
+async function handlePostScreenshots(
+  req: NextRequest,
+  ctx: Ctx,
+  requestId: string,
+) {
   const rl = await rateLimit(
     `upload:${clientKeyFromRequest(req)}`,
     RATE_LIMIT_UPLOAD.max,
@@ -149,15 +197,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         `Unsupported type: ${mime}. Use PNG, JPEG, or WebP.`,
       );
     }
-    let width: number | undefined;
-    let height: number | undefined;
-    try {
-      const meta = await sharp(buf, { failOn: "none" }).metadata();
-      width = meta.width;
-      height = meta.height;
-    } catch {
-      // ignore — still store raw bytes
-    }
+    const { width, height } = await readImageDimensions(buf);
 
     const ext = extFromMime(mime);
     const storageKey = storageKeyForProject(projectId, ext);
