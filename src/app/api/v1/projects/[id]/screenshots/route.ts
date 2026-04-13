@@ -13,6 +13,7 @@ import { getRequestId } from "@/lib/api-context";
 import { logApi } from "@/lib/logger";
 import { assertCanAddScreenshots, QuotaExceededError } from "@/lib/quota";
 import { ensureProjectAccess } from "@/lib/project-access";
+import { resolveScreenshotMime } from "@/lib/image-mime";
 import sharp from "sharp";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -104,20 +105,6 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   for (const file of files) {
     if (!(file instanceof File)) continue;
-    const mime = file.type || "application/octet-stream";
-    if (!ALLOWED_IMAGE_MIMES.has(mime)) {
-      logApi("warn", "upload_failed", {
-        requestId,
-        projectId,
-        path: "POST screenshots",
-        extra: { reason: "invalid_mime", mime },
-      });
-      return jsonError(
-        400,
-        "invalid_mime",
-        `Unsupported type: ${mime}. Use PNG, JPEG, or WebP.`,
-      );
-    }
     if (file.size > MAX_SCREENSHOT_BYTES) {
       logApi("warn", "upload_failed", {
         requestId,
@@ -147,16 +134,29 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   let sortBase = project._count.screenshots;
 
   for (const file of validFiles) {
-    const mime = file.type || "application/octet-stream";
     const buf = Buffer.from(await file.arrayBuffer());
+    const mime = resolveScreenshotMime(file, buf);
+    if (!ALLOWED_IMAGE_MIMES.has(mime)) {
+      logApi("warn", "upload_failed", {
+        requestId,
+        projectId,
+        path: "POST screenshots",
+        extra: { reason: "invalid_mime", mime },
+      });
+      return jsonError(
+        400,
+        "invalid_mime",
+        `Unsupported type: ${mime}. Use PNG, JPEG, or WebP.`,
+      );
+    }
     let width: number | undefined;
     let height: number | undefined;
     try {
-      const meta = await sharp(buf).metadata();
+      const meta = await sharp(buf, { failOn: "none" }).metadata();
       width = meta.width;
       height = meta.height;
     } catch {
-      // ignore
+      // ignore — still store raw bytes
     }
 
     const ext = extFromMime(mime);
