@@ -12,6 +12,7 @@ import {
   getUserWithPlan,
   QuotaExceededError,
 } from "@/lib/quota";
+import { resolveGeminiApiKeyForUser } from "@/lib/ai-api-key";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,8 @@ function isProUser(user: {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const requestId = await getRequestId();
-  const rl = rateLimit(
+  logApi("info", "analyze_started", { requestId, path: "POST /analyze" });
+  const rl = await rateLimit(
     `analyze:${clientKeyFromRequest(req)}`,
     RATE_LIMIT_ANALYZE.max,
     RATE_LIMIT_ANALYZE.windowMs,
@@ -110,11 +112,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) {
     return jsonError(
       503,
       "gemini_unconfigured",
-      "GEMINI_API_KEY is not configured on the server",
+      "GEMINI_API_KEY is not configured for this user/server",
     );
   }
 
@@ -135,7 +138,33 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     path: "POST /analyze",
   });
 
-  await enqueueAnalyzeJob(job.id);
+  try {
+    await enqueueAnalyzeJob(job.id);
+    logApi("info", "analyze_enqueued", {
+      requestId,
+      projectId,
+      jobId: job.id,
+      path: "POST /analyze",
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Queue unavailable";
+    await prisma.job.update({
+      where: { id: job.id },
+      data: { status: "failed", error: msg.slice(0, 500) },
+    });
+    logApi("error", "analyze_enqueue_failed", {
+      requestId,
+      projectId,
+      jobId: job.id,
+      path: "POST /analyze",
+      extra: { error: msg.slice(0, 200) },
+    });
+    return jsonError(
+      503,
+      "analyze_queue_unavailable",
+      "Antrean analisis sedang bermasalah. Coba lagi beberapa saat.",
+    );
+  }
 
   return NextResponse.json({ jobId: job.id });
 }

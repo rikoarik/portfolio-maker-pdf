@@ -27,6 +27,11 @@ export type DraftSection = {
 export type DraftPayload = {
   draftVersion: number;
   projectSummary: string;
+  problemSummary?: string;
+  solutionSummary?: string;
+  impactSummary?: string;
+  contentMode?: "manual" | "auto" | "rewrite";
+  impactConfidence?: "hypothesis" | "data_backed";
   techStack: string[];
   screens: ScreenDraft[];
   roleFocus?: string;
@@ -62,8 +67,10 @@ export function createEmptyCaseStudy(screenAssetIds: string[]): CaseStudyDraft {
 }
 
 export const emptyDraft = (): DraftPayload => ({
-  draftVersion: 2,
+  draftVersion: 3,
   projectSummary: "",
+  contentMode: "manual",
+  impactConfidence: "hypothesis",
   techStack: [],
   screens: [],
   studies: [],
@@ -158,8 +165,22 @@ export function parseDraft(raw: unknown): DraftPayload {
     : undefined;
 
   return {
-    draftVersion: typeof j.draftVersion === "number" ? j.draftVersion : 2,
+    draftVersion: typeof j.draftVersion === "number" ? j.draftVersion : 3,
     projectSummary: String(j.projectSummary ?? ""),
+    problemSummary:
+      typeof j.problemSummary === "string" ? j.problemSummary : undefined,
+    solutionSummary:
+      typeof j.solutionSummary === "string" ? j.solutionSummary : undefined,
+    impactSummary:
+      typeof j.impactSummary === "string" ? j.impactSummary : undefined,
+    contentMode:
+      j.contentMode === "manual" ||
+      j.contentMode === "auto" ||
+      j.contentMode === "rewrite"
+        ? j.contentMode
+        : "manual",
+    impactConfidence:
+      j.impactConfidence === "data_backed" ? "data_backed" : "hypothesis",
     techStack: Array.isArray(j.techStack)
       ? j.techStack.map((t) => String(t))
       : [],

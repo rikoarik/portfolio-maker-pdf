@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseDraft } from "@/lib/draft";
 import { jsonError } from "@/lib/http";
+import { getRequestId } from "@/lib/api-context";
+import { logApi } from "@/lib/logger";
 import { bufferToPdfImageDataUri } from "@/lib/pdf/image-for-pdf";
 import { readUploadFile } from "@/lib/storage";
 import { renderMultiProjectPdfBuffer } from "@/lib/pdf/render";
@@ -15,6 +17,7 @@ import {
 const MAX_BATCH = 10;
 
 export async function POST(req: NextRequest) {
+  const requestId = await getRequestId();
   let projectIds: string[] = [];
   let templateId = "default";
 
@@ -29,8 +32,18 @@ export async function POST(req: NextRequest) {
     projectIds = j.projectIds.map(String).slice(0, MAX_BATCH);
     if (j?.templateId === "compact") templateId = "compact";
   } catch {
+    logApi("warn", "export_failed", {
+      requestId,
+      path: "POST /projects/batch-pdf",
+      extra: { reason: "bad_request" },
+    });
     return jsonError(400, "bad_request", "Body JSON tidak valid.");
   }
+  logApi("info", "export_clicked", {
+    requestId,
+    path: "POST /projects/batch-pdf",
+    extra: { batchRequested: projectIds.length },
+  });
 
   const sessionUserId = await getSessionUserIdSynced();
   if (sessionUserId) {
@@ -38,6 +51,11 @@ export async function POST(req: NextRequest) {
       await assertCanExportPdf(sessionUserId);
     } catch (e) {
       if (e instanceof QuotaExceededError) {
+        logApi("warn", "export_failed", {
+          requestId,
+          path: "POST /projects/batch-pdf",
+          extra: { reason: "quota_exceeded" },
+        });
         return jsonError(402, e.code, e.message);
       }
       throw e;
@@ -51,6 +69,11 @@ export async function POST(req: NextRequest) {
   });
 
   if (projects.length === 0) {
+    logApi("warn", "export_failed", {
+      requestId,
+      path: "POST /projects/batch-pdf",
+      extra: { reason: "not_found" },
+    });
     return jsonError(404, "not_found", "Tidak ada project yang ditemukan.");
   }
 
@@ -92,6 +115,11 @@ export async function POST(req: NextRequest) {
   }
 
   const filename = `portfolio-gabungan-${Date.now()}`;
+  logApi("info", "export_succeeded", {
+    requestId,
+    path: "POST /projects/batch-pdf",
+    extra: { batchRendered: orderedProjects.length, templateId },
+  });
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

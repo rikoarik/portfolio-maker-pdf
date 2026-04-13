@@ -7,19 +7,12 @@ import {
 } from "@/lib/quota";
 import { ensureProjectAccess } from "@/lib/project-access";
 import { runSingleAssetAnalyze } from "@/lib/analyze-job";
+import { resolveGeminiApiKeyForUser } from "@/lib/ai-api-key";
 
 type Ctx = { params: Promise<{ id: string; assetId: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id: projectId, assetId } = await ctx.params;
-
-  if (!process.env.GEMINI_API_KEY) {
-    return jsonError(
-      503,
-      "gemini_unconfigured",
-      "GEMINI_API_KEY is not configured on the server",
-    );
-  }
 
   const project = await prisma.portfolioProject.findUnique({
     where: { id: projectId },
@@ -29,6 +22,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
   const denied = await ensureProjectAccess(project);
   if (denied) return denied;
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) {
+    return jsonError(
+      503,
+      "gemini_unconfigured",
+      "GEMINI_API_KEY is not configured for this user/server",
+    );
+  }
 
   if (project.userId) {
     try {

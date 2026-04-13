@@ -6,8 +6,8 @@ import type {
 } from "@/lib/draft";
 import type { TemplateDefinition } from "@/lib/template-sections";
 
-function getClient(): GoogleGenerativeAI {
-  const key = process.env.GEMINI_API_KEY;
+function getClient(apiKey?: string): GoogleGenerativeAI {
+  const key = apiKey?.trim() || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error("GEMINI_API_KEY is not set");
   }
@@ -39,12 +39,13 @@ export async function generateSectionsWithAi(args: {
   template: TemplateDefinition;
   existing: DraftSection[];
   portfolioPersona?: string;
+  apiKey?: string;
 }): Promise<{
   sections: DraftSection[];
   prototypeLinks?: PrototypeLink[];
   testResults?: string;
 }> {
-  const gen = getClient();
+  const gen = getClient(args.apiKey);
   const model = gen.getGenerativeModel({ model: modelName() });
 
   const lang = args.locale === "id" ? "Indonesian" : "English";

@@ -12,9 +12,13 @@ export async function PATCH(
   if (!auth.ok) return auth.response;
 
   const { id } = await ctx.params;
-  let body: { tier?: unknown; planId?: unknown };
+  let body: { tier?: unknown; planId?: unknown; aiApiKey?: unknown };
   try {
-    body = (await req.json()) as { tier?: unknown; planId?: unknown };
+    body = (await req.json()) as {
+      tier?: unknown;
+      planId?: unknown;
+      aiApiKey?: unknown;
+    };
   } catch {
     return jsonError(400, "invalid_json", "Body harus JSON.");
   }
@@ -22,7 +26,8 @@ export async function PATCH(
   const existing = await prisma.user.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "not_found", "User tidak ditemukan.");
 
-  const data: { tier?: string; planId?: string | null } = {};
+  const data: { tier?: string; planId?: string | null; aiApiKey?: string | null } =
+    {};
 
   if (typeof body.tier === "string") {
     const t = body.tier.toUpperCase();
@@ -40,8 +45,19 @@ export async function PATCH(
     data.planId = plan.id;
   }
 
-  if (data.tier === undefined && data.planId === undefined) {
-    return jsonError(400, "no_updates", "Kirim tier dan/atau planId.");
+  if (body.aiApiKey === null) {
+    data.aiApiKey = null;
+  } else if (typeof body.aiApiKey === "string") {
+    const v = body.aiApiKey.trim();
+    data.aiApiKey = v.length ? v : null;
+  }
+
+  if (
+    data.tier === undefined &&
+    data.planId === undefined &&
+    data.aiApiKey === undefined
+  ) {
+    return jsonError(400, "no_updates", "Kirim tier, planId, dan/atau aiApiKey.");
   }
 
   const updated = await prisma.user.update({
@@ -52,6 +68,7 @@ export async function PATCH(
       email: true,
       tier: true,
       planId: true,
+      aiApiKey: true,
       plan: { select: { slug: true, name: true } },
     },
   });
@@ -61,7 +78,11 @@ export async function PATCH(
     action: "admin_user_override",
     targetUserId: id,
     metadata: {
-      before: { tier: existing.tier, planId: existing.planId },
+      before: {
+        tier: existing.tier,
+        planId: existing.planId,
+        aiApiKey: existing.aiApiKey ? "***" : null,
+      },
       after: data,
     },
   });

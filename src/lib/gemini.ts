@@ -10,8 +10,8 @@ export type VisionJson = {
   ux_notes: string;
 };
 
-function getClient(): GoogleGenerativeAI {
-  const key = process.env.GEMINI_API_KEY;
+function getClient(apiKey?: string): GoogleGenerativeAI {
+  const key = apiKey?.trim() || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error("GEMINI_API_KEY is not set");
   }
@@ -80,9 +80,10 @@ export async function analyzeScreenshot(
   extraInstruction?: string,
   requestedModelName?: string,
   portfolioContext?: PortfolioVisionContext,
+  apiKey?: string,
 ): Promise<VisionJson> {
   const { buffer, mimeType: mt } = await resizeForVision(imageBytes);
-  const gen = getClient();
+  const gen = getClient(apiKey);
   const model = gen.getGenerativeModel({ model: modelName(requestedModelName) });
   const extra =
     extraInstruction?.trim() ?
@@ -130,8 +131,9 @@ export async function aggregateProjectNarrative(
   locale: string,
   requestedModelName?: string,
   portfolioContext?: PortfolioVisionContext,
+  apiKey?: string,
 ): Promise<{ projectSummary: string; techStack: string[] }> {
-  const gen = getClient();
+  const gen = getClient(apiKey);
   const model = gen.getGenerativeModel({ model: modelName(requestedModelName) });
   const lines = draft.screens.map(
     (s: ScreenDraft) =>
@@ -173,14 +175,118 @@ export type RegenerateContext = {
   portfolioPersona?: string;
 };
 
+export type NarrativeMode = "auto" | "rewrite";
+export type NarrativeInput = {
+  problem?: string;
+  solution?: string;
+  impact?: string;
+};
+export type NarrativeOutput = {
+  problemSummary: string;
+  solutionSummary: string;
+  impactSummary: string;
+  warnings: string[];
+};
+
+function enforceHypothesisImpact(rawImpact: string): {
+  impact: string;
+  warning?: string;
+} {
+  const t = rawImpact.trim();
+  if (!t) {
+    return {
+      impact:
+        "Perubahan ini diperkirakan meningkatkan pengalaman pengguna dan efisiensi alur utama.",
+      warning: "impact_defaulted_hypothesis",
+    };
+  }
+  const low = t.toLowerCase();
+  const hasHypothesisWord =
+    low.includes("diperkirakan") ||
+    low.includes("berpotensi") ||
+    low.includes("indikasi") ||
+    low.includes("kemungkinan");
+  if (hasHypothesisWord) return { impact: t };
+  const hasNumericClaim = /\d+([.,]\d+)?\s*%?/.test(t);
+  if (hasNumericClaim) {
+    return {
+      impact:
+        "Perubahan ini berpotensi meningkatkan metrik utama berdasarkan pola penggunaan, namun angka final perlu divalidasi dengan data produksi.",
+      warning: "impact_numeric_claim_removed",
+    };
+  }
+  return {
+    impact: `Dampak awal menunjukkan ${t.charAt(0).toLowerCase()}${t.slice(1)} dan berpotensi meningkat setelah validasi data.`,
+    warning: "impact_normalized_hypothesis",
+  };
+}
+
+export async function generateNarrativeBlocks(opts: {
+  mode: NarrativeMode;
+  locale: string;
+  draft: DraftPayload;
+  title: string;
+  roleFocus?: string;
+  industry?: string;
+  manualInput?: NarrativeInput;
+  requestedModelName?: string;
+  apiKey?: string;
+}): Promise<NarrativeOutput> {
+  const gen = getClient(opts.apiKey);
+  const model = gen.getGenerativeModel({ model: modelName(opts.requestedModelName) });
+  const screenLines = opts.draft.screens.map(
+    (s) => `- ${s.title || "Layar"}: ${s.bullets.join("; ")} ${s.notes ? `(notes: ${s.notes})` : ""}`,
+  );
+  const rewriteSeed =
+    opts.mode === "rewrite"
+      ? `\nManual input:\nproblem=${opts.manualInput?.problem ?? ""}\nsolution=${opts.manualInput?.solution ?? ""}\nimpact=${opts.manualInput?.impact ?? ""}`
+      : "";
+  const prompt = `You are helping create a concise project portfolio narrative.
+Return ONLY valid JSON:
+{"problem":"1-2 kalimat","solution":"1-3 kalimat","impact":"1-2 kalimat","warnings":["..."]}.
+
+Rules:
+- Language: ${opts.locale === "id" ? "Indonesian" : "English"}.
+- Keep concise and practical.
+- Impact must stay as hypothesis unless explicit data is given, use words like "diperkirakan", "berpotensi", or "indikasi".
+- Avoid guaranteed numeric claims.
+
+Mode: ${opts.mode}
+Project title: ${opts.title || "Untitled project"}
+Role focus: ${opts.roleFocus ?? "general"}
+Industry: ${opts.industry ?? "general"}
+Screens evidence:
+${screenLines.join("\n")}
+Current summary: ${opts.draft.projectSummary}
+${rewriteSeed}`;
+  const result = await model.generateContent(prompt);
+  const raw = stripJsonFence(result.response.text());
+  const j = JSON.parse(raw) as Record<string, unknown>;
+  const problemSummary = String(j.problem ?? "").trim();
+  const solutionSummary = String(j.solution ?? "").trim();
+  const impactRaw = String(j.impact ?? "").trim();
+  const warningList = Array.isArray(j.warnings)
+    ? j.warnings.map((w) => String(w))
+    : [];
+  const normalizedImpact = enforceHypothesisImpact(impactRaw);
+  if (normalizedImpact.warning) warningList.push(normalizedImpact.warning);
+  return {
+    problemSummary,
+    solutionSummary,
+    impactSummary: normalizedImpact.impact,
+    warnings: warningList,
+  };
+}
+
 export async function regenerateDraftWithInstruction(
   draft: DraftPayload,
   locale: string,
   instruction: string,
   requestedModelName?: string,
   portfolioContext?: RegenerateContext,
+  apiKey?: string,
 ): Promise<DraftPayload> {
-  const gen = getClient();
+  const gen = getClient(apiKey);
   const model = gen.getGenerativeModel({ model: modelName(requestedModelName) });
   const ctxBits: string[] = [];
   if (portfolioContext?.jobFocus?.trim()) {

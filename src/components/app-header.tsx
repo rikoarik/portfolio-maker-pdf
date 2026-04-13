@@ -137,6 +137,26 @@ export function AppHeader() {
                         </svg>
                         Upgrade
                       </Link>
+                      <Link
+                        href="/app/settings"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-zinc-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0112.75-5.303l.568.568a7.5 7.5 0 010 10.47l-.568.568A7.5 7.5 0 014.5 12zm7.5-2.25v4.5m-2.25-2.25h4.5" />
+                        </svg>
+                        Pengaturan
+                      </Link>
+                      <Link
+                        href="/help"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-zinc-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a3.375 3.375 0 116.75 0c0 1.125-.623 2.105-1.543 2.617-.835.466-1.332 1.257-1.332 2.133v.25m-.375 3.25h.008v.008h-.008V18z" />
+                        </svg>
+                        Bantuan
+                      </Link>
                       <button
                         type="button"
                         onClick={() => {

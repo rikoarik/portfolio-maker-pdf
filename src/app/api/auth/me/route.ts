@@ -3,8 +3,7 @@ import { ensurePrismaUser } from "@/lib/auth/sync-user";
 import { prisma } from "@/lib/db";
 import { dbUnreachableResponse } from "@/lib/prisma-errors";
 import {
-  currentUsagePeriodKey,
-  getUsageCount,
+  getUsageSnapshot,
 } from "@/lib/quota";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,6 +26,7 @@ export async function GET() {
         tier: true,
         role: true,
         aiUsageCount: true,
+        paymentCustomerId: true,
         plan: {
           select: {
             slug: true,
@@ -42,19 +42,11 @@ export async function GET() {
     if (!row) {
       return NextResponse.json({ user: null });
     }
-    const periodKey = currentUsagePeriodKey();
-    const [aiUsed, pdfUsed] = await Promise.all([
-      getUsageCount(user.id, periodKey, "ai_analysis"),
-      getUsageCount(user.id, periodKey, "pdf_export"),
-    ]);
+    const usage = await getUsageSnapshot(user.id);
     return NextResponse.json({
       user: {
         ...row,
-        usageThisMonth: {
-          periodKey,
-          ai_analysis: aiUsed,
-          pdf_export: pdfUsed,
-        },
+        usageThisMonth: usage,
       },
     });
   } catch (e) {

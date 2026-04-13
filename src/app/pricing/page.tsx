@@ -6,21 +6,21 @@ import { useQuery } from "@tanstack/react-query";
 import { createCheckoutSession, getMe } from "@/lib/api";
 
 const FREE_FEATURES = [
-  { text: "Maks 5 Proyek Portofolio per Bulan", included: true },
-  { text: "Maks 10 gambar screenshot tiap proyek", included: true },
-  { text: "Ditenagai AI Gemini Flash (Cepat)", included: true },
-  { text: "5x Percobaan Generate (Daily)", included: true },
-  { text: "Export PDF Dasar (dengan watermark)", included: true },
+  { text: "Maks 5 proyek aktif", included: true },
+  { text: "Maks 20 screenshot per proyek", included: true },
+  { text: "Kuota 15 analisis AI per periode", included: true },
+  { text: "Kuota 10 ekspor PDF per periode", included: true },
+  { text: "Editor portofolio lengkap + template", included: true },
 ];
 
 const PRO_FEATURES = [
-  { text: "Proyek Portofolio Tanpa Batas (Unlimited)", included: true },
-  { text: "Maks 50 gambar screenshot per proyek", included: true },
-  { text: "Ditenagai AI Gemini Pro 1.5 (Akurat)", included: true },
-  { text: "Regenerate Teks Sesuka Hati", included: true },
-  { text: "Gabungkan Ratusan Proyek (Batch PDF)", included: true },
-  { text: "Ekspor PDF Kualitas Tinggi", included: true },
-  { text: "Bebas Watermark Premium", included: true },
+  { text: "Maks 100 proyek aktif", included: true },
+  { text: "Maks 50 screenshot per proyek", included: true },
+  { text: "Kuota 300 analisis AI per periode", included: true },
+  { text: "Kuota 120 ekspor PDF per periode", included: true },
+  { text: "Batch PDF dan regenerate tanpa batas fitur", included: true },
+  { text: "Checkout via Stripe atau Midtrans (otomatis)", included: true },
+  { text: "Prioritas dukungan untuk akun Pro", included: true },
 ];
 
 export default function PricingPage() {
@@ -78,7 +78,7 @@ export default function PricingPage() {
             <span className="gradient-text">sesuai kebutuhanmu</span>
           </h1>
           <p className="mt-5 text-lg text-zinc-400 max-w-2xl mx-auto text-balance">
-            Mulai gratis, lalu upgrade ke Pro saat kamu butuh analisis tanpa batas dan fitur export tingkat lanjut.
+            Mulai dari paket gratis dengan kuota jelas per periode, lalu upgrade ke Pro saat butuh kapasitas lebih besar.
           </p>
         </div>
 
@@ -217,7 +217,7 @@ export default function PricingPage() {
                 }}
                 className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-500/20 transition-all hover:shadow-2xl hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:transform-none disabled:hover:shadow-xl"
               >
-                {checkoutLoading ? "Mengalihkan ke Stripe…" : "Berlangganan Sekarang"}
+                {checkoutLoading ? "Mengalihkan ke pembayaran…" : "Lanjutkan Pembayaran"}
                 <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
                 </svg>
@@ -227,7 +227,7 @@ export default function PricingPage() {
                   <Link href="/login?next=/pricing" className="font-medium text-indigo-400 underline hover:text-indigo-300">
                     Masuk
                   </Link>{" "}
-                  untuk checkout Stripe.
+                  untuk memulai checkout.
                 </p>
               ) : null}
               {checkoutErr ? (
@@ -254,7 +254,7 @@ export default function PricingPage() {
               },
               {
                 q: "Bisa batalkan langganan?",
-                a: "Tentu. Anda bisa membatalkan langganan kapan saja melalui dashboard Stripe. Akses Pro tetap aktif hingga akhir periode billing.",
+                a: "Bisa. Pembatalan mengikuti metode pembayaran yang Anda gunakan. Untuk Stripe dapat dikelola lewat portal pelanggan, sementara Midtrans mengikuti alur dukungan pembayaran.",
               },
             ].map((faq, i) => (
               <details

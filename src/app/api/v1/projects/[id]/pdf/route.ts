@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseDraft } from "@/lib/draft";
 import { jsonError } from "@/lib/http";
+import { getRequestId } from "@/lib/api-context";
+import { logApi } from "@/lib/logger";
 import { bufferToPdfImageDataUri } from "@/lib/pdf/image-for-pdf";
 import { readUploadFile } from "@/lib/storage";
 import { renderPortfolioPdfBuffer } from "@/lib/pdf/render";
@@ -15,13 +17,21 @@ import { ensureProjectAccess } from "@/lib/project-access";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
+  const requestId = await getRequestId();
   const { id: projectId } = await ctx.params;
+  logApi("info", "export_clicked", { requestId, projectId, path: "POST /pdf" });
 
   const project = await prisma.portfolioProject.findUnique({
     where: { id: projectId },
     include: { screenshots: { orderBy: { sortOrder: "asc" } } },
   });
   if (!project) {
+    logApi("warn", "export_failed", {
+      requestId,
+      projectId,
+      path: "POST /pdf",
+      extra: { reason: "not_found" },
+    });
     return jsonError(404, "not_found", "Project not found");
   }
   const denied = await ensureProjectAccess(project);
@@ -32,6 +42,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       await assertCanExportPdf(project.userId);
     } catch (e) {
       if (e instanceof QuotaExceededError) {
+        logApi("warn", "export_failed", {
+          requestId,
+          projectId,
+          path: "POST /pdf",
+          extra: { reason: "quota_exceeded" },
+        });
         return jsonError(402, e.code, e.message);
       }
       throw e;
@@ -72,6 +88,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
 
   const filename = `portfolio-${project.id}`.replace(/[^a-zA-Z0-9-_]/g, "_");
+  logApi("info", "export_succeeded", {
+    requestId,
+    projectId,
+    path: "POST /pdf",
+    extra: { templateId, screenshotCount: project.screenshots.length },
+  });
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {

@@ -11,19 +11,12 @@ import { ensureProjectAccess } from "@/lib/project-access";
 import { serializeProject } from "@/lib/project-serializer";
 import { generateTemplateSections } from "@/lib/template-sections";
 import { generateSectionsWithAi } from "@/lib/gemini-sections";
+import { resolveGeminiApiKeyForUser } from "@/lib/ai-api-key";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id: projectId } = await ctx.params;
-
-  if (!process.env.GEMINI_API_KEY) {
-    return jsonError(
-      503,
-      "gemini_unconfigured",
-      "GEMINI_API_KEY is not configured on the server",
-    );
-  }
 
   let body: { templateId?: string } = {};
   try {
@@ -48,6 +41,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
   const denied = await ensureProjectAccess(project);
   if (denied) return denied;
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) {
+    return jsonError(
+      503,
+      "gemini_unconfigured",
+      "GEMINI_API_KEY is not configured for this user/server",
+    );
+  }
 
   if (project.userId) {
     try {
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       template,
       existing: draft.sections ?? [],
       portfolioPersona: draft.portfolioPersona,
+      apiKey: aiApiKey,
     });
     sections = out.sections;
     testResults = out.testResults;

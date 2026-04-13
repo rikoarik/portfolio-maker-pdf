@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       paymentCustomerId: true,
       currentPeriodEnd: true,
       aiUsageCount: true,
+      aiApiKey: true,
       createdAt: true,
       plan: { select: { id: true, slug: true, name: true } },
     },

@@ -12,6 +12,7 @@ type UserRow = {
   role: string;
   tier: string;
   planId: string | null;
+  aiApiKey: string | null;
   currentPeriodEnd: string | null;
   plan: PlanOpt | null;
 };
@@ -61,7 +62,7 @@ export default function AdminUsersPage() {
 
   async function patchUser(
     id: string,
-    body: { tier?: string; planId?: string | null },
+    body: { tier?: string; planId?: string | null; aiApiKey?: string | null },
   ) {
     setBusy(id);
     setErr(null);
@@ -141,13 +142,14 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Tier</th>
                 <th className="px-6 py-4">Plan</th>
+                <th className="px-6 py-4">API Key AI</th>
                 <th className="px-6 py-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <Loader2Icon className="mx-auto h-6 w-6 animate-spin text-zinc-400" />
                     <p className="mt-2 text-sm text-zinc-500">Memuat data pengguna...</p>
                   </td>
@@ -155,7 +157,7 @@ export default function AdminUsersPage() {
               ) : users.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-12 text-center text-sm text-zinc-500"
                   >
                     Tidak ada user ditemukan. Coba kata kunci lain.
@@ -208,6 +210,23 @@ export default function AdminUsersPage() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="password"
+                          defaultValue={u.aiApiKey ?? ""}
+                          placeholder={u.aiApiKey ? "Tersimpan (ubah jika perlu)" : "AIza..."}
+                          disabled={busy === u.id}
+                          onBlur={(e) =>
+                            void patchUser(u.id, {
+                              aiApiKey: e.target.value.trim() || null,
+                            })
+                          }
+                          className="w-56 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-900 shadow-sm transition-colors hover:border-zinc-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+                        />
+                        <span className="text-xs text-zinc-500">opsional per user</span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <span className="text-xs font-medium text-zinc-400">

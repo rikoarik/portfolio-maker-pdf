@@ -47,7 +47,7 @@ export default function Home() {
         </h1>
 
         <p className="animate-fade-in-up mt-5 text-base sm:text-lg leading-relaxed text-zinc-400 max-w-xl text-balance" style={{ animationDelay: "120ms" }}>
-          Unggah tangkapan layar aplikasimu, biarkan AI merangkum fitur & hasilkan PDF portofolio siap lamar — dalam hitungan menit.
+          Unggah tangkapan layar aplikasimu, biarkan AI merangkum fitur, lalu unduh PDF portofolio siap lamar dalam hitungan menit.
         </p>
 
         {/* CTA */}
@@ -55,7 +55,7 @@ export default function Home() {
           <LandingActions />
         </div>
         <div className="animate-fade-in-up mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-zinc-500" style={{ animationDelay: "240ms" }}>
-          {["Tanpa kartu kredit", "Gratis selamanya", "PDF siap lamar"].map((t, i) => (
+          {["Tanpa kartu kredit", "Ada paket gratis", "Kuota jelas per periode"].map((t, i) => (
             <span key={i} className="flex items-center gap-1.5">
               <span className="h-1 w-1 rounded-full bg-zinc-600" />
               {t}

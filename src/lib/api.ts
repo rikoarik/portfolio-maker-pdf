@@ -12,6 +12,7 @@ export class ApiError extends Error {
     message: string,
     public status: number,
     public code?: string,
+    public retryAfterSec?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -22,6 +23,7 @@ async function throwIfNotOk(res: Response): Promise<void> {
   if (res.ok) return;
   let code: string | undefined;
   let message = res.statusText;
+  let retryAfterSec: number | undefined;
   try {
     const j = (await res.json()) as {
       error?: { message?: string; code?: string };
@@ -31,7 +33,12 @@ async function throwIfNotOk(res: Response): Promise<void> {
   } catch {
     /* body bukan JSON */
   }
-  throw new ApiError(message, res.status, code);
+  const retryAfter = res.headers.get("Retry-After");
+  if (retryAfter) {
+    const n = Number.parseInt(retryAfter, 10);
+    if (Number.isFinite(n) && n > 0) retryAfterSec = n;
+  }
+  throw new ApiError(message, res.status, code, retryAfterSec);
 }
 
 export type ProjectResponse = {
@@ -81,6 +88,7 @@ export type MeUser = {
   tier: string;
   role: string;
   aiUsageCount: number;
+  paymentCustomerId?: string | null;
   plan: {
     slug: string;
     name: string;
@@ -91,6 +99,7 @@ export type MeUser = {
   } | null;
   usageThisMonth: {
     periodKey: string;
+    periodLabel?: string;
     ai_analysis: number;
     pdf_export: number;
   };
@@ -104,11 +113,39 @@ export async function getMe(): Promise<{ user: MeUser | null }> {
 
 export async function createCheckoutSession(body?: {
   successPath?: string;
-}): Promise<{ url: string }> {
+  provider?: "auto" | "stripe" | "midtrans";
+}): Promise<{ url: string; provider?: "stripe" | "midtrans" }> {
   const res = await fetch("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
+    ...fetchOpts,
+  });
+  if (!res.ok) await throwIfNotOk(res);
+  return res.json();
+}
+
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  const res = await fetch("/api/billing/portal", {
+    method: "POST",
+    ...fetchOpts,
+  });
+  if (!res.ok) await throwIfNotOk(res);
+  return res.json();
+}
+
+export async function exportMyAccountData(): Promise<unknown> {
+  const res = await fetch("/api/auth/export", {
+    cache: "no-store",
+    ...fetchOpts,
+  });
+  if (!res.ok) await throwIfNotOk(res);
+  return res.json();
+}
+
+export async function deleteMyAccount(): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch("/api/auth/delete", {
+    method: "POST",
     ...fetchOpts,
   });
   if (!res.ok) await throwIfNotOk(res);
@@ -269,6 +306,35 @@ export async function generateSectionsFromTemplate(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ templateId }),
+    ...fetchOpts,
+  });
+  if (!res.ok) await throwIfNotOk(res);
+  return res.json();
+}
+
+export async function generateNarrative(
+  projectId: string,
+  body: {
+    mode: "auto" | "rewrite";
+    manualInput?: {
+      problem?: string;
+      solution?: string;
+      impact?: string;
+    };
+  },
+): Promise<{
+  narrative: {
+    problemSummary: string;
+    solutionSummary: string;
+    impactSummary: string;
+    warnings: string[];
+  };
+  draft: DraftPayload;
+}> {
+  const res = await fetch(`${BASE}/projects/${projectId}/narrative`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
     ...fetchOpts,
   });
   if (!res.ok) await throwIfNotOk(res);

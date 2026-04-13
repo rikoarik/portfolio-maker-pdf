@@ -62,6 +62,14 @@ function screenForAsset(draft: DraftPayload, assetId: string): ScreenDraft | und
   return draft.screens.find((s) => s.assetId === assetId);
 }
 
+function hasNarrativeBlocks(draft: DraftPayload): boolean {
+  return !!(
+    draft.problemSummary?.trim() ||
+    draft.solutionSummary?.trim() ||
+    draft.impactSummary?.trim()
+  );
+}
+
 const compactStyles = StyleSheet.create({
   page: {
     padding: 24,
@@ -112,6 +120,16 @@ export function PortfolioPdfDocumentCompact({ title, draft, images }: PortfolioP
                 • {h}
               </Text>
             ))}
+          </>
+        ) : null}
+        {hasNarrativeBlocks(draft) ? (
+          <>
+            <Text style={compactStyles.heading}>Problem</Text>
+            <Text style={compactStyles.summary}>{draft.problemSummary || "—"}</Text>
+            <Text style={compactStyles.heading}>Solution</Text>
+            <Text style={compactStyles.summary}>{draft.solutionSummary || "—"}</Text>
+            <Text style={compactStyles.heading}>Impact</Text>
+            <Text style={compactStyles.summary}>{draft.impactSummary || "—"}</Text>
           </>
         ) : null}
         {(draft.sections?.length ?? 0) > 0 ? (
@@ -226,6 +244,16 @@ export function PortfolioPdfDocument({ title, draft, images }: PortfolioPdfProps
                 • {h}
               </Text>
             ))}
+          </>
+        ) : null}
+        {hasNarrativeBlocks(draft) ? (
+          <>
+            <Text style={styles.heading}>Problem</Text>
+            <Text style={styles.summary}>{draft.problemSummary || "—"}</Text>
+            <Text style={styles.heading}>Solution</Text>
+            <Text style={styles.summary}>{draft.solutionSummary || "—"}</Text>
+            <Text style={styles.heading}>Impact</Text>
+            <Text style={styles.summary}>{draft.impactSummary || "—"}</Text>
           </>
         ) : null}
         {(draft.sections?.length ?? 0) > 0 ? (

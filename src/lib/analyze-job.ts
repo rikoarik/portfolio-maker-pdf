@@ -4,6 +4,8 @@ import {
   aggregateProjectNarrative,
   analyzeScreenshot,
 } from "@/lib/gemini";
+import { resolveGeminiApiKeyForUser } from "@/lib/ai-api-key";
+import { log } from "@/lib/logger";
 import { incrementUsage } from "@/lib/quota";
 import { readUploadFile } from "@/lib/storage";
 
@@ -18,8 +20,10 @@ function modelFromJobPayload(payload: unknown): string | undefined {
 }
 
 export async function runAnalyzeJob(jobId: string): Promise<void> {
+  const startedAt = Date.now();
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job || job.type !== "analyze") return;
+  log("info", "analyze_job_started", { jobId, projectId: job.projectId });
 
   const requestedModel = modelFromJobPayload(job.payload);
 
@@ -51,7 +55,16 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
   }
 
   let draft: DraftPayload = parseDraft(project.draftPayload);
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) {
+    await prisma.job.update({
+      where: { id: jobId },
+      data: { status: "failed", error: "GEMINI_API_KEY is not configured" },
+    });
+    return;
+  }
   let done = 0;
+  let failCount = 0;
 
   for (const asset of project.screenshots) {
     try {
@@ -68,6 +81,7 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
           templateId: draft.templateId,
           portfolioPersona: draft.portfolioPersona,
         },
+        aiApiKey,
       );
 
       await prisma.analysisResult.create({
@@ -99,6 +113,7 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Analysis failed";
+      failCount += 1;
       await prisma.analysisResult.create({
         data: {
           assetId: asset.id,
@@ -111,6 +126,17 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
       await prisma.screenshotAsset.update({
         where: { id: asset.id },
         data: { analysisStatus: "failed" },
+      });
+      log("warn", "analyze_asset_failed", {
+        jobId,
+        projectId: project.id,
+        assetId: asset.id,
+        error: msg.slice(0, 200),
+      });
+      log("warn", "analyze_failed", {
+        jobId,
+        projectId: project.id,
+        assetId: asset.id,
       });
     }
 
@@ -144,6 +170,7 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
         templateId: draft.templateId,
         portfolioPersona: draft.portfolioPersona,
       },
+      aiApiKey,
     );
     draft.projectSummary = agg.projectSummary;
     draft.techStack = [...new Set([...draft.techStack, ...agg.techStack])].slice(
@@ -162,6 +189,19 @@ export async function runAnalyzeJob(jobId: string): Promise<void> {
     where: { id: jobId },
     data: { status: "completed", progress: 100, error: null },
   });
+  log("info", "analyze_job_completed", {
+    jobId,
+    projectId: project.id,
+    screenshotTotal: total,
+    failedScreenshots: failCount,
+    durationMs: Date.now() - startedAt,
+  });
+  log("info", "analyze_completed", {
+    jobId,
+    projectId: project.id,
+    screenshotTotal: total,
+    failedScreenshots: failCount,
+  });
 
   if (project.userId) {
     await incrementUsage(project.userId, "ai_analysis", 1);
@@ -173,6 +213,7 @@ export async function runSingleAssetAnalyze(
   assetId: string,
   extraInstruction?: string,
 ): Promise<void> {
+  const startedAt = Date.now();
   const asset = await prisma.screenshotAsset.findUnique({
     where: { id: assetId },
     include: { project: true },
@@ -180,6 +221,8 @@ export async function runSingleAssetAnalyze(
   if (!asset) throw new Error("Screenshot not found");
 
   const project = asset.project;
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) throw new Error("GEMINI_API_KEY is not configured");
   const draft = parseDraft(project.draftPayload);
   const buf = await readUploadFile(asset.storageKey);
   const vision = await analyzeScreenshot(
@@ -194,6 +237,7 @@ export async function runSingleAssetAnalyze(
       templateId: draft.templateId,
       portfolioPersona: draft.portfolioPersona,
     },
+    aiApiKey,
   );
 
   await prisma.analysisResult.create({
@@ -230,4 +274,9 @@ export async function runSingleAssetAnalyze(
   if (project.userId) {
     await incrementUsage(project.userId, "ai_analysis", 1);
   }
+  log("info", "single_asset_analyzed", {
+    projectId: project.id,
+    assetId,
+    durationMs: Date.now() - startedAt,
+  });
 }

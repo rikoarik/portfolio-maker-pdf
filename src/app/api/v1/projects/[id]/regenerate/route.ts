@@ -10,19 +10,12 @@ import {
 import { ensureProjectAccess } from "@/lib/project-access";
 import { regenerateDraftWithInstruction } from "@/lib/gemini";
 import { serializeProject } from "@/lib/project-serializer";
+import { resolveGeminiApiKeyForUser } from "@/lib/ai-api-key";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { id: projectId } = await ctx.params;
-
-  if (!process.env.GEMINI_API_KEY) {
-    return jsonError(
-      503,
-      "gemini_unconfigured",
-      "GEMINI_API_KEY is not configured on the server",
-    );
-  }
 
   let instruction = "";
   try {
@@ -51,6 +44,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
   const denied = await ensureProjectAccess(project);
   if (denied) return denied;
+  const aiApiKey = await resolveGeminiApiKeyForUser(project.userId);
+  if (!aiApiKey) {
+    return jsonError(
+      503,
+      "gemini_unconfigured",
+      "GEMINI_API_KEY is not configured for this user/server",
+    );
+  }
 
   if (project.userId) {
     try {
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         templateId: draft.templateId,
         portfolioPersona: draft.portfolioPersona,
       },
+      aiApiKey,
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Regenerate failed";

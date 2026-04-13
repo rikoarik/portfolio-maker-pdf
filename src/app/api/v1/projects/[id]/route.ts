@@ -6,6 +6,8 @@ import { deleteProjectFiles } from "@/lib/storage";
 import { serializeProject } from "@/lib/project-serializer";
 import { ensureProjectAccess } from "@/lib/project-access";
 import { Prisma } from "@/generated/prisma/client";
+import { getRequestId } from "@/lib/api-context";
+import { logApi } from "@/lib/logger";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const requestId = await getRequestId();
   const { id } = await ctx.params;
   const existing = await prisma.portfolioProject.findUnique({ where: { id } });
   if (!existing) {
@@ -75,6 +78,28 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const incoming = body.draft as Record<string, unknown>;
     if (typeof incoming.projectSummary === "string") {
       merged.projectSummary = incoming.projectSummary;
+    }
+    if (typeof incoming.problemSummary === "string") {
+      merged.problemSummary = incoming.problemSummary || undefined;
+    }
+    if (typeof incoming.solutionSummary === "string") {
+      merged.solutionSummary = incoming.solutionSummary || undefined;
+    }
+    if (typeof incoming.impactSummary === "string") {
+      merged.impactSummary = incoming.impactSummary || undefined;
+    }
+    if (
+      incoming.contentMode === "manual" ||
+      incoming.contentMode === "auto" ||
+      incoming.contentMode === "rewrite"
+    ) {
+      merged.contentMode = incoming.contentMode;
+    }
+    if (
+      incoming.impactConfidence === "hypothesis" ||
+      incoming.impactConfidence === "data_backed"
+    ) {
+      merged.impactConfidence = incoming.impactConfidence;
     }
     if (Array.isArray(incoming.techStack)) {
       merged.techStack = incoming.techStack.map((x) => String(x));
@@ -144,6 +169,18 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
             : [],
         }),
       );
+    }
+    const contentFieldsTouched =
+      typeof incoming.problemSummary === "string" ||
+      typeof incoming.solutionSummary === "string" ||
+      typeof incoming.impactSummary === "string" ||
+      incoming.contentMode === "manual";
+    if (contentFieldsTouched) {
+      logApi("info", "manual_content_saved", {
+        requestId,
+        projectId: id,
+        path: "PATCH /projects/[id]",
+      });
     }
     draftPayload = draftToPrismaJson(merged) as Prisma.InputJsonValue;
   }

@@ -7,22 +7,33 @@ export default function PrivacyPage() {
         ← Beranda
       </Link>
       <h1 className="mt-6 text-3xl font-semibold text-zinc-900">
-        Kebijakan privasi (ringkas)
+        Kebijakan privasi
       </h1>
       <div className="prose prose-zinc mt-8 max-w-none text-sm leading-relaxed">
         <p>
-          Portfolio Maker mengirim gambar screenshot yang Anda unggah ke backend
-          kami, lalu ke layanan Google Gemini untuk analisis teks. Jangan
-          mengunggah data sensitif, kata sandi, atau informasi pribadi pihak
-          ketiga.
+          Portfolio Maker memproses data akun, proyek, dan screenshot Anda untuk
+          menghasilkan dokumen portofolio PDF. Data tertentu dapat diproses oleh
+          penyedia pihak ketiga yang kami gunakan, termasuk Supabase (auth/db),
+          penyimpanan file (lokal/S3), dan Google Gemini untuk analisis teks
+          dari screenshot.
         </p>
         <p className="mt-4">
-          File disimpan di server pengembangan secara lokal; untuk produksi,
-          tentukan retensi penyimpanan dan penyedia sesuai kebutuhan Anda.
+          Jangan unggah data sensitif, rahasia, kata sandi, atau data pribadi
+          pihak ketiga tanpa izin. Kami menyarankan Anda hanya mengunggah
+          materi yang memang aman untuk dianalisis.
         </p>
         <p className="mt-4">
-          Penggunaan API Google tunduk pada syarat layanan Google dan kebijakan
-          Google AI.
+          Data proyek dan screenshot disimpan selama akun aktif, atau sampai Anda
+          menghapus proyek/akun Anda. Fitur ekspor data dan hapus akun tersedia
+          di halaman pengaturan akun.
+        </p>
+        <p className="mt-4">
+          Penggunaan layanan pihak ketiga tunduk pada ketentuan masing-masing
+          penyedia, termasuk kebijakan Google AI dan penyedia pembayaran.
+        </p>
+        <p className="mt-4">
+          Jika ada pertanyaan privasi atau permintaan penghapusan data, hubungi
+          kami melalui halaman bantuan.
         </p>
       </div>
     </div>

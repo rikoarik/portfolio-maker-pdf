@@ -25,7 +25,8 @@ function extFromMime(mime: string): string {
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   const requestId = await getRequestId();
-  const rl = rateLimit(
+  logApi("info", "upload_started", { requestId, path: "POST screenshots" });
+  const rl = await rateLimit(
     `upload:${clientKeyFromRequest(req)}`,
     RATE_LIMIT_UPLOAD.max,
     RATE_LIMIT_UPLOAD.windowMs,
@@ -55,10 +56,21 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const form = await req.formData();
   const files = form.getAll("files") as File[];
   if (!files.length) {
+    logApi("warn", "upload_failed", {
+      requestId,
+      path: "POST screenshots",
+      extra: { reason: "no_files" },
+    });
     return jsonError(400, "no_files", 'Expected multipart field "files"');
   }
 
   if (project._count.screenshots + files.length > MAX_SCREENSHOTS_PER_PROJECT) {
+    logApi("warn", "upload_failed", {
+      requestId,
+      projectId,
+      path: "POST screenshots",
+      extra: { reason: "too_many_files" },
+    });
     return jsonError(
       400,
       "too_many_files",
@@ -88,13 +100,18 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     mime: string;
     previewUrl: string;
   }[] = [];
-
-  let sortBase = project._count.screenshots;
+  const validFiles: File[] = [];
 
   for (const file of files) {
     if (!(file instanceof File)) continue;
     const mime = file.type || "application/octet-stream";
     if (!ALLOWED_IMAGE_MIMES.has(mime)) {
+      logApi("warn", "upload_failed", {
+        requestId,
+        projectId,
+        path: "POST screenshots",
+        extra: { reason: "invalid_mime", mime },
+      });
       return jsonError(
         400,
         "invalid_mime",
@@ -102,13 +119,35 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       );
     }
     if (file.size > MAX_SCREENSHOT_BYTES) {
+      logApi("warn", "upload_failed", {
+        requestId,
+        projectId,
+        path: "POST screenshots",
+        extra: { reason: "file_too_large", size: file.size },
+      });
       return jsonError(
         400,
         "file_too_large",
         `Max ${MAX_SCREENSHOT_BYTES} bytes per file`,
       );
     }
+    validFiles.push(file);
+  }
 
+  if (!validFiles.length) {
+    logApi("warn", "upload_failed", {
+      requestId,
+      projectId,
+      path: "POST screenshots",
+      extra: { reason: "no_valid_files" },
+    });
+    return jsonError(400, "no_files", "Tidak ada file valid untuk diproses.");
+  }
+
+  let sortBase = project._count.screenshots;
+
+  for (const file of validFiles) {
+    const mime = file.type || "application/octet-stream";
     const buf = Buffer.from(await file.arrayBuffer());
     let width: number | undefined;
     let height: number | undefined;
@@ -146,5 +185,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     });
   }
 
-  return NextResponse.json({ screenshots: created }, { status: 201 });
+  logApi("info", "upload_succeeded", {
+    requestId,
+    projectId,
+    path: "POST screenshots",
+    extra: { accepted: created.length },
+  });
+  return NextResponse.json(
+    { screenshots: created, totalAccepted: created.length },
+    { status: 201 },
+  );
 }

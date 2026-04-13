@@ -6,6 +6,7 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { runAnalyzeJob } from "./lib/analyze-job";
 import { prisma } from "./lib/db";
+import { log } from "./lib/logger";
 
 const url = process.env.REDIS_URL;
 if (!url) {
@@ -27,6 +28,11 @@ const worker = new Worker(
 
 worker.on("failed", async (job, err) => {
   const jobId = (job?.data as { jobId?: string })?.jobId;
+  log("error", "worker_job_failed", {
+    queueJobId: job?.id,
+    jobId,
+    error: err instanceof Error ? err.message : "Job failed",
+  });
   if (jobId) {
     await prisma.job.update({
       where: { id: jobId },
@@ -38,4 +44,4 @@ worker.on("failed", async (job, err) => {
   }
 });
 
-console.log("Analyze worker started (queue: analyze)");
+log("info", "worker_started", { queue: "analyze" });

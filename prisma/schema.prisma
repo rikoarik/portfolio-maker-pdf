@@ -33,6 +33,7 @@ model User {
   tier              String             @default("FREE")
   planId            String?
   plan              Plan?              @relation(fields: [planId], references: [id], onDelete: SetNull)
+  aiApiKey          String?
   paymentCustomerId String?
   currentPeriodEnd  DateTime?
   aiUsageCount      Int                @default(0)

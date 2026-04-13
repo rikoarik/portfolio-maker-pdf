@@ -15,7 +15,9 @@ import {
   ApiError,
   downloadPdf,
   getJob,
+  getMe,
   getProject,
+  generateNarrative,
   generateSectionsFromTemplate,
   patchProject,
   regenerateDraft,
@@ -26,7 +28,6 @@ import {
 } from "@/lib/api";
 import { PersonaOnboardingModal } from "@/components/workspace/persona-onboarding-modal";
 import { ScreenDraftsEditor } from "@/components/workspace/screen-drafts-editor";
-import { WorkspaceSubnav } from "@/components/workspace/workspace-subnav";
 import {
   generateTemplateSections,
   listTemplates,
@@ -37,7 +38,6 @@ import {
   jobFocusPlaceholder,
   screenshotDropzoneHint,
   templateNoteForSelect,
-  workspaceHeroSubtitle,
 } from "@/lib/workspace-copy";
 import Link from "next/link";
 
@@ -51,8 +51,31 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 function formatClientApiError(e: unknown): string {
-  if (e instanceof ApiError && e.code === "quota_exceeded") {
-    return `${e.message} Lihat /pricing untuk upgrade paket.`;
+  if (e instanceof ApiError) {
+    if (e.code === "quota_exceeded") {
+      return `${e.message} Lihat /pricing untuk upgrade paket.`;
+    }
+    if (e.code === "rate_limited" || e.status === 429) {
+      if (e.retryAfterSec && e.retryAfterSec > 0) {
+        return `Permintaan terlalu cepat. Coba lagi dalam ${e.retryAfterSec} detik.`;
+      }
+      return "Permintaan terlalu cepat. Tunggu sebentar lalu coba lagi.";
+    }
+    if (e.code === "gemini_unconfigured") {
+      return "Layanan AI sedang belum tersedia di server. Hubungi admin atau coba lagi nanti.";
+    }
+    if (e.code === "no_screenshots") {
+      return "Unggah minimal 1 screenshot dulu sebelum analisis atau export.";
+    }
+    if (e.code === "invalid_mime") {
+      return "Format file belum didukung. Gunakan PNG, JPEG, atau WebP.";
+    }
+    if (e.code === "file_too_large") {
+      return "Ukuran file terlalu besar. Kompres screenshot lalu coba lagi.";
+    }
+    if (e.status >= 500) {
+      return "Server sedang sibuk. Coba lagi beberapa saat.";
+    }
   }
   return e instanceof Error ? e.message : "Terjadi kesalahan.";
 }
@@ -87,10 +110,19 @@ export function Workspace({ projectId }: { projectId: string }) {
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [contentStep, setContentStep] = useState(0);
+  const [editorMode, setEditorMode] = useState<"guided" | "advanced">("guided");
+  const [narrativeMode, setNarrativeMode] = useState<"auto" | "manual" | "rewrite">(
+    "auto",
+  );
 
   const projectQ = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId),
+  });
+  const meQ = useQuery({
+    queryKey: ["auth_me"],
+    queryFn: getMe,
+    retry: false,
   });
 
   const jobQ = useQuery({
@@ -132,10 +164,6 @@ export function Workspace({ projectId }: { projectId: string }) {
     },
   });
 
-  useEffect(() => {
-    if (saveDraft.isPending) setSaveHint("Menyimpan…");
-  }, [saveDraft.isPending]);
-
   const pdfMut = useMutation({
     mutationFn: () => downloadPdf(projectId, pdfTemplate),
     onSuccess: (blob) => {
@@ -159,6 +187,29 @@ export function Workspace({ projectId }: { projectId: string }) {
     onSuccess: (data) => {
       qc.setQueryData(["project", projectId], data);
       setLocalError(null);
+    },
+    onError: (e: unknown) => setLocalError(formatClientApiError(e)),
+  });
+  const narrativeMut = useMutation({
+    mutationFn: (mode: "auto" | "rewrite") =>
+      generateNarrative(projectId, {
+        mode,
+        manualInput:
+          mode === "rewrite"
+            ? {
+                problem: projectQ.data?.draft.problemSummary ?? "",
+                solution: projectQ.data?.draft.solutionSummary ?? "",
+                impact: projectQ.data?.draft.impactSummary ?? "",
+              }
+            : undefined,
+      }),
+    onSuccess: (data) => {
+      qc.setQueryData(["project", projectId], (old: ProjectResponse | undefined) =>
+        old ? { ...old, draft: data.draft } : old,
+      );
+      setLocalError(null);
+      setSaveHint("Konten ter-generate");
+      window.setTimeout(() => setSaveHint(null), 2200);
     },
     onError: (e: unknown) => setLocalError(formatClientApiError(e)),
   });
@@ -255,8 +306,30 @@ export function Workspace({ projectId }: { projectId: string }) {
   const selectedTemplate = draft.templateId
     ? generateTemplateSections(draft.templateId)
     : null;
+  const usage = meQ.data?.user?.usageThisMonth;
+  const plan = meQ.data?.user?.plan;
+  const aiCap = plan?.maxAiAnalysesPerPeriod ?? 0;
+  const aiUsed = usage?.ai_analysis ?? 0;
+  const pdfCap = plan?.maxPdfExportsPerPeriod ?? 0;
+  const pdfUsed = usage?.pdf_export ?? 0;
+  const usageWarn = !!usage && aiCap > 0 && aiUsed / aiCap >= 0.8;
+  const pdfWarn = !!usage && pdfCap > 0 && pdfUsed / pdfCap >= 0.8;
+  const missingScreenshotsForExport = project!.screenshots.length === 0;
+  const jobFailureMessage =
+    job?.status === "failed"
+      ? job.error
+        ? `Analisis gagal: ${job.error}. Anda bisa coba lagi dari langkah Analisis atau per layar.`
+        : "Analisis gagal. Coba lagi dari langkah Analisis atau per layar."
+      : null;
+  const checklist = {
+    uploaded: project!.screenshots.length > 0,
+    analyzed:
+      project!.screenshots.length > 0 &&
+      project!.screenshots.some((s) => s.analysisStatus === "ok"),
+    drafted: draft.projectSummary.trim().length > 0 || draft.techStack.length > 0,
+    exportReady: !missingScreenshotsForExport,
+  };
 
-  const heroSub = workspaceHeroSubtitle(draft.templateId, draft.portfolioPersona);
   const dropHint = screenshotDropzoneHint(draft.templateId, draft.portfolioPersona);
   const jobPh = jobFocusPlaceholder(draft.templateId, draft.portfolioPersona);
 
@@ -287,16 +360,16 @@ export function Workspace({ projectId }: { projectId: string }) {
   const canGoPrev = step > 0;
 
   return (
-    <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+    <div className="-mx-4 sm:-mx-6 lg:-mx-6 -mt-6 -mb-16 flex min-h-[calc(100vh-64px)] animate-fade-in flex-col lg:flex-row overflow-hidden bg-white">
       <PersonaOnboardingModal
         open={showPersonaModal}
         onPick={pickPersona}
         onSkip={skipPersona}
       />
 
-      <div className="lg:grid lg:grid-cols-12 lg:gap-10 items-start relative">
-        {/* Left Column - Form Steps */}
-        <div className="lg:col-span-6 xl:col-span-5 space-y-6">
+      {/* Left Column - Form Steps (Mentok Kiri) */}
+      <div className="flex-1 lg:w-7/12 xl:w-7/12 border-b lg:border-b-0 lg:border-r border-zinc-200 bg-white overflow-y-auto h-[100vh] lg:h-[calc(100vh-64px)] custom-scrollbar pb-16">
+        <div className="mx-auto w-full max-w-4xl px-4 sm:px-8 lg:px-12 py-8 lg:py-12 space-y-6">
 
       {/* Header */}
       <header className="mb-6">
@@ -307,10 +380,10 @@ export function Workspace({ projectId }: { projectId: string }) {
           </Link>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 text-zinc-300"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
           <span className="font-medium text-zinc-700 truncate max-w-[200px]">{projectTitle}</span>
-          {saveHint ? (
+          {saveDraft.isPending || saveHint ? (
             <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600" aria-live="polite">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              {saveHint}
+              {saveDraft.isPending ? "Menyimpan…" : saveHint}
             </span>
           ) : null}
         </nav>
@@ -318,7 +391,7 @@ export function Workspace({ projectId }: { projectId: string }) {
 
       {/* Stepper */}
       <div className="mb-8 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-sm">
-        <div className="flex">
+        <div className="flex overflow-x-auto custom-scrollbar">
           {STEPS.map((s, i) => {
             const isActive = i === step;
             const isPast = i < step;
@@ -353,6 +426,24 @@ export function Workspace({ projectId }: { projectId: string }) {
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 shrink-0 mt-0.5 text-red-500"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
           {localError}
+        </div>
+      ) : null}
+      {jobFailureMessage ? (
+        <div className="animate-fade-in mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 shrink-0 mt-0.5 text-red-500"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+          <p>{jobFailureMessage}</p>
+        </div>
+      ) : null}
+      {usageWarn ? (
+        <div className="animate-fade-in mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 shrink-0 mt-0.5 text-amber-600"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+          <div>
+            <p className="font-medium">Kuota analisis AI hampir habis.</p>
+            <p className="text-xs mt-0.5">
+              Terpakai {aiUsed}/{aiCap} untuk periode {usage?.periodLabel ?? usage?.periodKey}.{" "}
+              <Link href="/pricing" className="underline font-medium">Lihat paket Pro</Link>.
+            </p>
+          </div>
         </div>
       ) : null}
 
@@ -402,7 +493,7 @@ export function Workspace({ projectId }: { projectId: string }) {
                 </div>
                 <div className="flex items-center justify-between px-2.5 py-2">
                   <span className="text-xs font-medium text-zinc-600">Layar {idx + 1}</span>
-                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${s.analysisStatus === 'done' ? 'bg-emerald-50 text-emerald-700' : s.analysisStatus === 'failed' ? 'bg-red-50 text-red-600' : 'bg-zinc-100 text-zinc-500'}`}>{s.analysisStatus}</span>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${s.analysisStatus === 'ok' ? 'bg-emerald-50 text-emerald-700' : s.analysisStatus === 'failed' ? 'bg-red-50 text-red-600' : 'bg-zinc-100 text-zinc-500'}`}>{s.analysisStatus}</span>
                 </div>
               </li>
             ))}
@@ -532,6 +623,68 @@ export function Workspace({ projectId }: { projectId: string }) {
           </div>
         );
       })()}
+
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2">
+        <p className="text-xs text-zinc-500">
+          {editorMode === "guided"
+            ? "Mode Guided: tampilkan input penting dulu agar cepat jadi."
+            : "Mode Advanced: tampilkan semua detail termasuk prototype dan validasi."}
+        </p>
+        <div className="inline-flex rounded-lg bg-zinc-100 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setEditorMode("guided")}
+            className={`rounded-md px-2 py-1 font-medium ${editorMode === "guided" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
+          >
+            Guided
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorMode("advanced")}
+            className={`rounded-md px-2 py-1 font-medium ${editorMode === "advanced" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
+          >
+            Advanced
+          </button>
+        </div>
+      </div>
+      {editorMode === "guided" ? (
+        <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50/70 p-3">
+          <p className="text-xs font-medium text-indigo-800">Jalur tercepat ke PDF (kurang dari 5 menit)</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs ${checklist.uploaded ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-200 bg-white text-zinc-700"}`}
+            >
+              1. Upload screenshot {checklist.uploaded ? "✓" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs ${checklist.analyzed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-200 bg-white text-zinc-700"}`}
+            >
+              2. Jalankan analisis AI {checklist.analyzed ? "✓" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStep(2);
+                setContentStep(1);
+              }}
+              className={`rounded-lg border px-3 py-2 text-left text-xs ${checklist.drafted ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-200 bg-white text-zinc-700"}`}
+            >
+              3. Rapikan ringkasan cepat {checklist.drafted ? "✓" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs ${checklist.exportReady ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-zinc-200 bg-white text-zinc-700"}`}
+            >
+              4. Export PDF {checklist.exportReady ? "✓" : ""}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Sub-step 0: Informasi Dasar */}
       {contentStep === 0 && (
@@ -696,11 +849,147 @@ export function Workspace({ projectId }: { projectId: string }) {
           </div>
         </div>
 
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 animate-fade-in-up" style={{ animationDelay: '90ms' }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Isi konten cepat</h3>
+              <p className="mt-0.5 text-xs text-zinc-600">
+                Pilih mode: Auto dari screenshot, isi manual, atau AI rewrite.
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg bg-white p-1 text-xs ring-1 ring-zinc-200">
+              <button
+                type="button"
+                onClick={() => setNarrativeMode("auto")}
+                className={`rounded-md px-2 py-1 font-medium ${narrativeMode === "auto" ? "bg-zinc-900 text-white" : "text-zinc-600"}`}
+              >
+                Auto
+              </button>
+              <button
+                type="button"
+                onClick={() => setNarrativeMode("manual")}
+                className={`rounded-md px-2 py-1 font-medium ${narrativeMode === "manual" ? "bg-zinc-900 text-white" : "text-zinc-600"}`}
+              >
+                Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => setNarrativeMode("rewrite")}
+                className={`rounded-md px-2 py-1 font-medium ${narrativeMode === "rewrite" ? "bg-zinc-900 text-white" : "text-zinc-600"}`}
+              >
+                Rewrite
+              </button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={narrativeMut.isPending}
+              onClick={() => narrativeMut.mutate("auto")}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {narrativeMut.isPending && narrativeMode === "auto"
+                ? "Generating..."
+                : "Auto dari screenshot"}
+            </button>
+            <button
+              type="button"
+              disabled={narrativeMut.isPending}
+              onClick={() => narrativeMut.mutate("rewrite")}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 disabled:opacity-60"
+            >
+              {narrativeMut.isPending && narrativeMode === "rewrite"
+                ? "Rewriting..."
+                : "AI Rewrite dari input manual"}
+            </button>
+            {narrativeMode === "manual" ? (
+              <span className="text-xs text-zinc-600">
+                Mode manual aktif. Isi di bawah lalu simpan otomatis saat fokus keluar.
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3 animate-fade-in-up" style={{ animationDelay: '110ms' }}>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-600">Problem</span>
+            <textarea
+              className="input-field mt-1 min-h-[90px] resize-y"
+              placeholder="Masalah utama user yang ingin diselesaikan..."
+              value={draft.problemSummary ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                qc.setQueryData(["project", projectId], (old: ProjectResponse) =>
+                  old
+                    ? { ...old, draft: { ...old.draft, problemSummary: v, contentMode: "manual" } }
+                    : old,
+                );
+              }}
+              onBlur={() => {
+                const d = qc.getQueryData(["project", projectId]) as ProjectResponse | undefined;
+                if (d) saveDraft.mutate(d.draft);
+              }}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-600">Solution</span>
+            <textarea
+              className="input-field mt-1 min-h-[90px] resize-y"
+              placeholder="Pendekatan/fitur yang kamu kerjakan..."
+              value={draft.solutionSummary ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                qc.setQueryData(["project", projectId], (old: ProjectResponse) =>
+                  old
+                    ? { ...old, draft: { ...old.draft, solutionSummary: v, contentMode: "manual" } }
+                    : old,
+                );
+              }}
+              onBlur={() => {
+                const d = qc.getQueryData(["project", projectId]) as ProjectResponse | undefined;
+                if (d) saveDraft.mutate(d.draft);
+              }}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-600">Impact (hipotesis aman)</span>
+            <textarea
+              className="input-field mt-1 min-h-[90px] resize-y"
+              placeholder="Dampak yang diperkirakan, hindari klaim angka pasti jika belum ada data..."
+              value={draft.impactSummary ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                qc.setQueryData(["project", projectId], (old: ProjectResponse) =>
+                  old
+                    ? {
+                        ...old,
+                        draft: {
+                          ...old.draft,
+                          impactSummary: v,
+                          impactConfidence: "hypothesis",
+                          contentMode: "manual",
+                        },
+                      }
+                    : old,
+                );
+              }}
+              onBlur={() => {
+                const d = qc.getQueryData(["project", projectId]) as ProjectResponse | undefined;
+                if (d) saveDraft.mutate(d.draft);
+              }}
+            />
+          </label>
+        </div>
+
         <label className="block animate-fade-in-up" style={{ animationDelay: '120ms' }}>
           <span className="text-xs font-medium text-zinc-600">Ringkasan (boleh diedit)</span>
           <textarea
             className="input-field mt-1 min-h-[100px] resize-y"
-            placeholder="Ringkasan proyek Anda…"
+            placeholder={
+              editorMode === "guided"
+                ? "Tulis masalah utama, solusi, dan dampak proyek ini untuk recruiter."
+                : "Ringkasan proyek Anda…"
+            }
             value={draft.projectSummary}
             onChange={(e) => {
               const v = e.target.value;
@@ -806,7 +1095,11 @@ export function Workspace({ projectId }: { projectId: string }) {
             </span>
             Sections & Detail
           </h2>
-          <p className="text-xs text-zinc-500">Kelola bab portofolio, link prototype, dan studi kasus.</p>
+          <p className="text-xs text-zinc-500">
+            {editorMode === "guided"
+              ? "Fokus ke bagian inti dulu. Aktifkan Advanced jika ingin mengisi prototype dan hasil validasi."
+              : "Kelola bab portofolio, link prototype, dan studi kasus."}
+          </p>
         </div>
 
         {/* Sections */}
@@ -1031,7 +1324,7 @@ export function Workspace({ projectId }: { projectId: string }) {
         </div>
 
         {/* Prototype Links */}
-        {selectedTemplate?.supports.prototypeLinks ? (
+        {editorMode === "advanced" && selectedTemplate?.supports.prototypeLinks ? (
           <div className="rounded-xl border border-zinc-200 bg-white p-4 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
             <h3 className="text-sm font-medium text-zinc-800">Link prototype</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
@@ -1127,7 +1420,7 @@ export function Workspace({ projectId }: { projectId: string }) {
         ) : null}
 
         {/* Test Results */}
-        {selectedTemplate?.supports.testResults ? (
+        {editorMode === "advanced" && selectedTemplate?.supports.testResults ? (
           <div className="rounded-xl border border-zinc-200 bg-white p-4 animate-fade-in-up" style={{ animationDelay: '180ms' }}>
             <h3 className="text-sm font-medium text-zinc-800">
               Hasil test / validasi
@@ -1361,7 +1654,7 @@ export function Workspace({ projectId }: { projectId: string }) {
           </span>
           Pratinjau
         </h2>
-        <div className="max-w-xl rounded-xl border border-zinc-100 bg-zinc-50/80 p-6 shadow-inner">
+        <div className="w-full rounded-xl border border-zinc-100 bg-zinc-50/80 p-6 shadow-inner">
           <h3 className="text-lg font-bold text-zinc-900">
             {project!.title || "Portfolio project"}
           </h3>
@@ -1385,6 +1678,21 @@ export function Workspace({ projectId }: { projectId: string }) {
           </span>
           Unduh PDF
         </h2>
+        <div className="mb-4 rounded-xl border border-emerald-200/70 bg-white/70 px-4 py-3 text-xs text-zinc-700">
+          <p>
+            Kuota PDF periode ini:{" "}
+            <span className="font-semibold">
+              {pdfUsed}/{pdfCap || "-"}
+            </span>
+            {usage ? ` · ${usage.periodLabel ?? usage.periodKey}` : ""}
+          </p>
+          {pdfWarn ? (
+            <p className="mt-1 text-amber-700">
+              Kuota PDF hampir habis. Simpan export penting lebih dulu atau{" "}
+              <Link href="/pricing" className="font-medium underline">upgrade paket</Link>.
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
           <label className="block">
             <span className="text-xs font-medium text-zinc-600">Template PDF</span>
@@ -1400,7 +1708,7 @@ export function Workspace({ projectId }: { projectId: string }) {
           <button
             type="button"
             onClick={() => pdfMut.mutate()}
-            disabled={pdfMut.isPending || project!.screenshots.length === 0}
+            disabled={pdfMut.isPending || missingScreenshotsForExport}
             className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:hover:transform-none"
           >
             {pdfMut.isPending ? (
@@ -1408,6 +1716,37 @@ export function Workspace({ projectId }: { projectId: string }) {
             ) : (
               <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg> Unduh PDF</>
             )}
+          </button>
+        </div>
+        {missingScreenshotsForExport ? (
+          <p className="mt-3 text-xs text-zinc-600">
+            Export belum bisa dilakukan karena belum ada screenshot. Kembali ke langkah{" "}
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="font-medium text-indigo-700 underline"
+            >
+              Upload
+            </button>{" "}
+            lalu unggah minimal 1 layar.
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+          <Link href="/pricing" className="font-medium text-indigo-700 underline">
+            Lihat paket & kuota
+          </Link>
+          <Link href="/help" className="font-medium text-zinc-700 underline">
+            Butuh bantuan export?
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setStep(0);
+              setLocalError(null);
+            }}
+            className="font-medium text-zinc-700 underline"
+          >
+            Upload tambahan screenshot
           </button>
         </div>
       </section>
@@ -1442,14 +1781,16 @@ export function Workspace({ projectId }: { projectId: string }) {
         )}
       </div>
 
-        </div>{/* End Left Column */}
-        
-        {/* Right Column - Live Preview */}
-        <div className="hidden lg:block lg:col-span-6 xl:col-span-7 sticky top-8">
-          <LivePreview project={project!} />
         </div>
-      </div>{/* End Grid */}
-
+      </div>{/* End Left Column */}
+        
+      {/* Right Column - Live Preview (Mentok Kanan) */}
+      <div className="hidden lg:flex lg:w-5/12 xl:w-5/12 bg-zinc-50/50 items-center justify-center p-6 lg:p-10 xl:p-12 lg:h-[calc(100vh-64px)] relative overflow-hidden">
+        {/* Subtle background decoration */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-2xl max-h-2xl rounded-full bg-gradient-to-tr from-indigo-100/40 via-sky-50/40 to-emerald-50/40 blur-3xl -z-10" />
+        
+        <LivePreview project={project!} />
+      </div>
     </div>
   );
 }
@@ -1458,36 +1799,49 @@ function LivePreview({ project }: { project: ProjectResponse }) {
   const draft = project.draft;
 
   return (
-    <div className="rounded-[2rem] border border-zinc-200 bg-zinc-50/50 p-6 shadow-2xl relative flex flex-col h-[calc(100vh-4rem)]">
-      <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="w-64 h-64 text-zinc-900"><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z"/></svg>
-      </div>
-      <div className="flex items-center gap-2 mb-6 text-emerald-600 font-semibold text-sm shrink-0">
-        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        Live Preview
+    <div className="w-full h-full max-h-[880px] max-w-3xl flex flex-col rounded-2xl border border-zinc-200/80 bg-white shadow-2xl overflow-hidden ring-1 ring-black/5 animate-scale-in">
+      {/* Safari Header */}
+      <div className="flex items-center px-4 py-3 bg-zinc-100/90 border-b border-zinc-200 backdrop-blur-md shrink-0">
+        <div className="flex gap-1.5 w-16">
+          <div className="w-3 h-3 rounded-full bg-red-400 border border-red-500/20" />
+          <div className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500/20" />
+          <div className="w-3 h-3 rounded-full bg-green-400 border border-green-500/20" />
+        </div>
+        <div className="mx-auto flex-1 flex justify-center">
+          <div className="flex items-center gap-2 px-6 py-1.5 rounded-md bg-white border border-zinc-200 shadow-sm text-[11px] text-zinc-500 font-medium w-full max-w-[280px]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+            <span className="truncate">portfolio-maker.io/p/{project.id.slice(0, 8)}</span>
+          </div>
+        </div>
+        <div className="w-16 flex justify-end">
+          <div className="w-5 h-5 rounded-full bg-zinc-200 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-zinc-500"><path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" /><path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" /></svg>
+          </div>
+        </div>
       </div>
       
       {/* Scrollable Container */}
-      <div className="space-y-6 flex-1 overflow-y-auto pr-3 relative z-10 pb-8 snap-y">
+      <div className="flex-1 overflow-y-auto bg-zinc-50 p-6 sm:p-10 custom-scrollbar scroll-smooth">
         
         {/* Title & Summary */}
-        <div className="space-y-4 rounded-2xl bg-white p-6 shadow-sm border border-zinc-100 snap-start">
-          <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight leading-tight">
+        <div className="relative mb-12">
+          {draft.templateId && <div className="absolute -top-4 -left-4 text-9xl opcaity-5 text-zinc-200 font-bold -z-10">{draft.templateId.charAt(0).toUpperCase()}</div>}
+          <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tight leading-[1.1] mb-6">
             {project.title || "Tanpa Judul"}
           </h1>
           {project.jobFocus && (
-            <div className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+            <div className="inline-flex items-center rounded-md bg-zinc-900 px-3 py-1 text-xs font-bold text-white uppercase tracking-wider mb-6">
               {project.jobFocus}
             </div>
           )}
-          <p className="text-zinc-600 leading-relaxed text-sm sm:text-base whitespace-pre-wrap">
-            {draft.projectSummary || "Ringkasan proyek akan muncul di sini saat Anda mengetik..."}
+          <p className="text-zinc-600 leading-relaxed text-base sm:text-lg whitespace-pre-wrap max-w-2xl relative z-10">
+            {draft.projectSummary || "Ringkasan proyek Anda akan disusun di sini. Ketik selengkapnya di form sebelah kiri untuk melihat preview..."}
           </p>
           
           {draft.techStack.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-4 border-t border-zinc-100 mt-4">
+            <div className="flex flex-wrap gap-2 pt-8 mt-4 border-t border-zinc-200/60 max-w-2xl">
               {draft.techStack.map((tech, i) => (
-                <span key={i} className="px-2 cursor-default py-1 rounded-md bg-indigo-50 text-indigo-700 text-[11px] sm:text-xs font-bold border border-indigo-100/50">
+                <span key={i} className="px-2.5 py-1 rounded bg-white text-zinc-800 text-xs font-bold border border-zinc-200/80 shadow-sm">
                   {tech}
                 </span>
               ))}
@@ -1495,34 +1849,39 @@ function LivePreview({ project }: { project: ProjectResponse }) {
           )}
         </div>
         
-        {/* Sections */}
-        {(draft.sections ?? []).length > 0 && (
-          <div className="space-y-4">
-            {(draft.sections ?? []).map((sec) => (
-              <div key={sec.id} className="rounded-2xl bg-white p-6 shadow-sm border border-zinc-100 snap-start">
-                <h3 className="text-lg font-bold text-zinc-900 mb-3">{sec.label || "Section Baru"}</h3>
-                <p className="text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed">
-                  {sec.content || "Belum ada konten."}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-        
         {/* Screens */}
         {project.screenshots.length > 0 && (
-          <div className="rounded-2xl bg-white p-6 shadow-sm border border-zinc-100 snap-start">
-            <h3 className="text-lg font-bold text-zinc-900 mb-4">Layar & Fitur</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="mb-12">
+            <h3 className="text-tracking-tight font-black text-zinc-900 text-2xl mb-6">Interface Pintar</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
               {project.screenshots.map((s, idx) => (
-                <div key={s.id} className="rounded-xl border border-zinc-200 bg-zinc-50 overflow-hidden aspect-[9/16] relative shadow-sm group">
-                   <img src={s.previewUrl} alt="" className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" />
-                   <div className="absolute top-2 left-2 flex h-5 w-5 items-center justify-center rounded-md bg-white/90 shadow text-[10px] font-bold text-zinc-800 backdrop-blur-sm">
+                <div key={s.id} className="rounded-2xl border border-zinc-200/50 bg-white overflow-hidden aspect-[9/16] relative shadow-md group hover:shadow-xl transition-all duration-500 cursor-default">
+                   <img src={s.previewUrl} alt="" className="object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-105" />
+                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                   <div className="absolute bottom-3 left-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 shadow-lg text-xs font-bold text-zinc-900 backdrop-blur-sm transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                      {idx + 1}
                    </div>
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Sections */}
+        {(draft.sections ?? []).length > 0 && (
+          <div className="space-y-8">
+            <h3 className="text-tracking-tight font-black text-zinc-900 text-2xl mb-2">Penjelasan Detail</h3>
+            {(draft.sections ?? []).map((sec) => (
+              <div key={sec.id} className="rounded-2xl bg-white p-8 shadow-sm border border-zinc-200/60 group hover:shadow-md transition-shadow">
+                <h3 className="text-lg font-bold text-zinc-900 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  {sec.label || "Section Baru"}
+                </h3>
+                <p className="text-[15px] text-zinc-600 whitespace-pre-wrap leading-relaxed">
+                  {sec.content || "Belum ada konten."}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -120,6 +120,9 @@ export default function AppProjectsPage() {
     const err = q.error;
     const dbDown =
       err instanceof ApiError && err.code === "database_unreachable";
+    const needLogin =
+      err instanceof ApiError &&
+      (err.code === "unauthorized" || err.status === 401);
 
     return (
       <div className="mx-auto max-w-lg py-16">
@@ -140,6 +143,20 @@ export default function AppProjectsPage() {
               <code className="rounded bg-zinc-100 px-1 text-xs">npm run db:test</code>
               , lalu restart <code className="rounded bg-zinc-100 px-1 text-xs">npm run dev</code>.
             </p>
+          ) : needLogin ? (
+            <div className="mt-4 space-y-2 text-sm">
+              <p className="text-zinc-600">
+                Masuk dulu untuk melihat proyek yang tersimpan di dashboard.
+              </p>
+              <div className="flex justify-center gap-4">
+                <Link href="/login?next=/app" className="text-indigo-600 font-medium hover:underline">
+                  Masuk
+                </Link>
+                <Link href="/" className="text-indigo-600 font-medium hover:underline">
+                  Coba tanpa akun
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="mt-4 flex justify-center gap-4 text-sm">
               <Link href="/login" className="text-indigo-600 font-medium hover:underline">
@@ -186,7 +203,7 @@ export default function AppProjectsPage() {
             {projects.length} proyek tersimpan
             {usage && (
               <span className="ml-2 text-xs text-zinc-400">
-                · periode {usage.periodKey} UTC
+                · periode {usage.periodLabel ?? usage.periodKey}
               </span>
             )}
           </p>
@@ -205,7 +222,7 @@ export default function AppProjectsPage() {
             href="/"
             className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-zinc-800 active:scale-95 shadow-md"
           >
-            + Proyek baru
+            + Proyek baru (beranda)
           </Link>
         </div>
       </div>
@@ -214,15 +231,15 @@ export default function AppProjectsPage() {
       {usage && (
         <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap gap-6">
-            <ProgressBar value={aiUsed} max={aiCap} label="Analisis AI bulan ini" color="indigo" />
-            <ProgressBar value={pdfUsed} max={pdfCap} label="PDF bulan ini" color="emerald" />
+            <ProgressBar value={aiUsed} max={aiCap} label="Analisis AI periode ini" color="indigo" />
+            <ProgressBar value={pdfUsed} max={pdfCap} label="PDF periode ini" color="emerald" />
           </div>
         </div>
       )}
 
       {/* Batch Mode Toggle */}
       {projects.length > 0 && !selectionMode && (
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => setSelectionMode(true)}
@@ -233,6 +250,9 @@ export default function AppProjectsPage() {
             </svg>
             Pilih gabungan PDF
           </button>
+          <span className="text-xs text-zinc-500">
+            Tips: ekspor beberapa proyek sekaligus jadi satu PDF.
+          </span>
         </div>
       )}
 

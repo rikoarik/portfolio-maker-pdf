@@ -57,19 +57,29 @@ export function ScreenDraftsEditor({
                     {si >= 0 ? `Layar ${si + 1}` : "Layar"}
                   </span>
                   {shot?.analysisStatus === "failed" ? (
-                    <button
-                      type="button"
-                      disabled={retryMut.isPending}
-                      onClick={() => retryMut.mutate(shot.id)}
-                      className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-                      </svg>
-                      Coba lagi
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700">
+                        Gagal dianalisis
+                      </span>
+                      <button
+                        type="button"
+                        disabled={retryMut.isPending}
+                        onClick={() => retryMut.mutate(shot.id)}
+                        className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                        </svg>
+                        Coba lagi
+                      </button>
+                    </div>
                   ) : null}
                 </div>
+                {shot?.analysisStatus === "failed" && shot.lastAnalysis?.errorCode ? (
+                  <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    Detail gagal: {shot.lastAnalysis.errorCode}
+                  </p>
+                ) : null}
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">Judul</label>
                   <input
