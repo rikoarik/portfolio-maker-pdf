@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Syarat layanan",
+  description:
+    "Syarat penggunaan Portfolio Maker: tanggung jawab konten, layanan, dan pembatasan yang berlaku.",
+  alternates: { canonical: "/terms" },
+  robots: { index: true, follow: true },
+};
 
 export default function TermsPage() {
   return (

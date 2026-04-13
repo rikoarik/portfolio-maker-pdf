@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ensurePrismaUser, isDbAdmin } from "@/lib/auth/sync-user";
 import { createClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/app/admin/admin-shell";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({
   children,

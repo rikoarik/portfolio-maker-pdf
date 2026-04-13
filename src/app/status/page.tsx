@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Status layanan",
+  description:
+    "Status operasional Portfolio Maker dan ketersediaan layanan inti.",
+  alternates: { canonical: "/status" },
+  robots: { index: true, follow: true },
+};
 
 export default function StatusPage() {
   return (

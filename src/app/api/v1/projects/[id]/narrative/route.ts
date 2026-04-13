@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { parseDraft, draftToPrismaJson } from "@/lib/draft";
+import { parseDraft, draftToPrismaJson, type DraftPayload } from "@/lib/draft";
 import { jsonError } from "@/lib/http";
 import { ensureProjectAccess } from "@/lib/project-access";
 import { generateNarrativeBlocks } from "@/lib/gemini";
@@ -37,7 +37,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   } catch {
     return jsonError(400, "invalid_json", "Request body must be JSON");
   }
-  const mode = body?.mode === "rewrite" ? "rewrite" : "auto";
+  const mode: "rewrite" | "auto" =
+    body?.mode === "rewrite" ? "rewrite" : "auto";
   logApi("info", "content_mode_selected", {
     requestId,
     projectId,
@@ -97,13 +98,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     throw e;
   }
 
-  const nextDraft = {
+  const nextDraft: DraftPayload = {
     ...draft,
     problemSummary: output.problemSummary || undefined,
     solutionSummary: output.solutionSummary || undefined,
     impactSummary: output.impactSummary || undefined,
     contentMode: mode,
-    impactConfidence: "hypothesis" as const,
+    impactConfidence: "hypothesis",
     projectSummary: [output.problemSummary, output.solutionSummary, output.impactSummary]
       .filter(Boolean)
       .join(" "),

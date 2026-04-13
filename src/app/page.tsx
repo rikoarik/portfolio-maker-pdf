@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingActions } from "@/components/landing-actions";
 import { LandingNav } from "@/components/landing-nav";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function Home() {
   return (

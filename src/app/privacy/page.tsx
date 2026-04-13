@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Kebijakan privasi",
+  description:
+    "Cara Portfolio Maker memproses akun, proyek, screenshot, dan integrasi pihak ketiga (Supabase, penyimpanan, Gemini).",
+  alternates: { canonical: "/privacy" },
+  robots: { index: true, follow: true },
+};
 
 export default function PrivacyPage() {
   return (

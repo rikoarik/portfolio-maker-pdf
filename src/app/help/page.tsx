@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Pusat bantuan",
+  description:
+    "Panduan penggunaan Portfolio Maker, billing, dan tautan ke status layanan.",
+  alternates: { canonical: "/help" },
+  robots: { index: true, follow: true },
+};
 
 export default function HelpPage() {
   return (
