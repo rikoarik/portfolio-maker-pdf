@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   ListObjectsV2Command,
@@ -58,6 +59,16 @@ export function createS3StorageAdapter(): StorageAdapter {
       const body = out.Body;
       if (!body) throw new Error("Empty S3 body");
       return Buffer.from(await body.transformToByteArray());
+    },
+
+    async deleteObject(key: string) {
+      const Key = key.replace(/\\/g, "/");
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: b,
+          Key,
+        }),
+      );
     },
 
     async deletePrefix(prefix: string) {

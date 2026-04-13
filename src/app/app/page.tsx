@@ -1,9 +1,15 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { ApiError, downloadBatchPdf, listMyProjects, getMe } from "@/lib/api";
+import {
+  ApiError,
+  deleteProject,
+  downloadBatchPdf,
+  getMe,
+  listMyProjects,
+} from "@/lib/api";
 
 function statusBadgeClass(status: string): string {
   if (status === "draft") return "bg-zinc-100 text-zinc-600 border-zinc-200";
@@ -47,6 +53,7 @@ function ProgressBar({ value, max, label, color = "indigo" }: { value: number; m
 }
 
 export default function AppProjectsPage() {
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["my-projects"],
     queryFn: listMyProjects,
@@ -63,6 +70,19 @@ export default function AppProjectsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchTemplate, setBatchTemplate] = useState<"default" | "compact">("default");
   const [batchError, setBatchError] = useState<string | null>(null);
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteProject(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-projects"] });
+      qc.invalidateQueries({ queryKey: ["auth_me"] });
+    },
+    onError: (e: unknown) => {
+      window.alert(
+        e instanceof Error ? e.message : "Gagal menghapus proyek. Coba lagi.",
+      );
+    },
+  });
 
   const batchMut = useMutation({
     mutationFn: () =>
@@ -353,41 +373,90 @@ export default function AppProjectsPage() {
                     </div>
                   </button>
                 ) : (
-                  <Link
-                    href={`/app/${p.id}`}
-                    className="group flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-all card-hover"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="line-clamp-2 font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">
-                        {p.title || "Tanpa judul"}
-                      </h2>
-                      <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(p.status)}`}>
-                        {statusLabel(p.status)}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0020.25 4.5H3.75A2.25 2.25 0 001.5 6.75v12a2.25 2.25 0 002.25 2.25z" />
-                      </svg>
-                      <span>{p.screenshotCount} screenshot</span>
-                      <span className="text-zinc-300">·</span>
-                      <span>
-                        {new Date(p.updatedAt).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <div className="mt-auto pt-4">
-                      <span className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        Buka proyek
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                  <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-all card-hover">
+                    <Link
+                      href={`/app/${p.id}`}
+                      className="flex flex-1 flex-col p-5"
+                    >
+                      <div className="flex gap-4">
+                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-100">
+                          {p.previewUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={p.previewUrl}
+                              alt=""
+                              className="h-full w-full object-cover object-top"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-8 w-8">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0020.25 4.5H3.75A2.25 2.25 0 001.5 6.75v12a2.25 2.25 0 002.25 2.25z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h2 className="line-clamp-2 font-semibold text-zinc-900 transition-colors group-hover:text-indigo-600">
+                              {p.title || "Tanpa judul"}
+                            </h2>
+                            <span className={`shrink-0 rounded-lg border px-2 py-0.5 text-xs font-semibold ${statusBadgeClass(p.status)}`}>
+                              {statusLabel(p.status)}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                            <span className="inline-flex items-center gap-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0020.25 4.5H3.75A2.25 2.25 0 001.5 6.75v12a2.25 2.25 0 002.25 2.25z" />
+                              </svg>
+                              {p.screenshotCount} screenshot
+                            </span>
+                            <span className="text-zinc-300">·</span>
+                            <span>
+                              {new Date(p.updatedAt).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <div className="mt-auto pt-4">
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
+                              Buka proyek
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`Hapus proyek ${p.title || p.id}`}
+                      disabled={deleteMut.isPending}
+                      onClick={() => {
+                        const label = p.title?.trim() || "proyek ini";
+                        if (
+                          !window.confirm(
+                            `Hapus "${label}" beserta semua screenshot? Tindakan ini tidak bisa dibatalkan.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        deleteMut.mutate(p.id);
+                      }}
+                      className="absolute right-3 top-3 rounded-lg bg-white/90 p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200/80 backdrop-blur-sm transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                    >
+                      {deleteMut.isPending ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                         </svg>
-                      </span>
-                    </div>
-                  </Link>
+                      )}
+                    </button>
+                  </div>
                 )}
               </li>
             );

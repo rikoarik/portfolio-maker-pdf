@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { draftToPrismaJson, emptyDraft } from "@/lib/draft";
 import { jsonError } from "@/lib/http";
@@ -9,12 +9,13 @@ import {
 } from "@/lib/quota";
 import { getSessionUserId, getSessionUserIdSynced } from "@/lib/project-access";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const uid = await getSessionUserId();
   if (!uid) {
     return jsonError(401, "unauthorized", "Login required to list projects");
   }
   try {
+    const origin = new URL(req.url).origin;
     const projects = await prisma.portfolioProject.findMany({
       where: { userId: uid },
       orderBy: { updatedAt: "desc" },
@@ -24,6 +25,11 @@ export async function GET() {
         status: true,
         updatedAt: true,
         _count: { select: { screenshots: true } },
+        screenshots: {
+          take: 1,
+          orderBy: { sortOrder: "asc" },
+          select: { id: true },
+        },
       },
     });
     return NextResponse.json({
@@ -33,6 +39,10 @@ export async function GET() {
         status: p.status,
         updatedAt: p.updatedAt.toISOString(),
         screenshotCount: p._count.screenshots,
+        previewUrl:
+          p.screenshots[0]?.id != null
+            ? `${origin}/api/v1/projects/${p.id}/screenshots/${p.screenshots[0].id}/file`
+            : null,
       })),
     });
   } catch (e) {

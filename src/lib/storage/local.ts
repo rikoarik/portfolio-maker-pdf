@@ -24,6 +24,15 @@ export const localStorageAdapter: StorageAdapter = {
     return fs.readFile(abs(key));
   },
 
+  async deleteObject(key: string) {
+    try {
+      await fs.unlink(abs(key));
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT") throw e;
+    }
+  },
+
   async deletePrefix(prefix: string) {
     const dir = path.join(UPLOAD_ROOT, prefix);
     await fs.rm(dir, { recursive: true, force: true });

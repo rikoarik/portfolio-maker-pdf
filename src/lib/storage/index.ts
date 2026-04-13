@@ -35,6 +35,10 @@ export async function readUploadFile(storageKey: string): Promise<Buffer> {
   return getStorage().get(storageKey);
 }
 
+export async function deleteUploadFile(storageKey: string): Promise<void> {
+  await getStorage().deleteObject(storageKey);
+}
+
 export async function deleteProjectFiles(projectId: string): Promise<void> {
   await getStorage().deletePrefix(projectId);
 }

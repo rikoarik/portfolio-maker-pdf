@@ -79,6 +79,8 @@ export type ProjectListItem = {
   status: string;
   updatedAt: string;
   screenshotCount: number;
+  /** Thumbnail URL for first screenshot, if any */
+  previewUrl: string | null;
 };
 
 export type MeUser = {
@@ -229,6 +231,29 @@ export async function patchProject(
     body: JSON.stringify(body),
     ...fetchOpts,
   });
+  if (!res.ok) await throwIfNotOk(res);
+  return res.json();
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const res = await fetch(`${BASE}/projects/${id}`, {
+    method: "DELETE",
+    ...fetchOpts,
+  });
+  if (!res.ok) await throwIfNotOk(res);
+}
+
+export async function deleteScreenshot(
+  projectId: string,
+  assetId: string,
+): Promise<ProjectResponse> {
+  const res = await fetch(
+    `${BASE}/projects/${projectId}/screenshots/${assetId}`,
+    {
+      method: "DELETE",
+      ...fetchOpts,
+    },
+  );
   if (!res.ok) await throwIfNotOk(res);
   return res.json();
 }
