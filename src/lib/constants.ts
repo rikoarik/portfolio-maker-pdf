@@ -8,6 +8,7 @@ export const ALLOWED_IMAGE_MIMES = new Set([
 ]);
 
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.5-pro";
 
 /** In-memory rate limits (per IP) — tune for production */
 export const RATE_LIMIT_UPLOAD = { max: 40, windowMs: 60_000 };

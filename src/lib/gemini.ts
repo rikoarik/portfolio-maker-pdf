@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { DEFAULT_GEMINI_MODEL } from "@/lib/constants";
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_PRO_MODEL,
+} from "@/lib/constants";
 import { resizeForVision } from "@/lib/image";
 import type { DraftPayload, ScreenDraft } from "@/lib/draft";
 
@@ -19,8 +22,12 @@ function getClient(apiKey?: string): GoogleGenerativeAI {
 }
 
 function modelName(override?: string): string {
-  if (override === "pro") return "gemini-1.5-pro";
-  if (override === "flash") return "gemini-1.5-flash";
+  if (override === "pro") {
+    return process.env.GEMINI_PRO_MODEL ?? DEFAULT_GEMINI_PRO_MODEL;
+  }
+  if (override === "flash") {
+    return process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
+  }
   return process.env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
 }
 
