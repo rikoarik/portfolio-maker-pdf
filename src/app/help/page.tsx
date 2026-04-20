@@ -43,11 +43,11 @@ export default function HelpPage() {
 
         <details className="rounded-xl border border-zinc-200 bg-white p-4">
           <summary className="cursor-pointer font-medium text-zinc-900">
-            Bagaimana cara ekspor atau hapus data akun?
+            Bagaimana cara ekspor atau hapus data aplikasi?
           </summary>
           <p className="mt-2 text-sm text-zinc-600">
             Buka <Link href="/app/settings" className="text-indigo-600 hover:underline">pengaturan akun</Link>,
-            lalu gunakan tombol ekspor data atau hapus akun.
+            lalu gunakan tombol ekspor data atau hapus data aplikasi. Proses ini menghapus data Portfolio Maker, bukan selalu identitas login dari penyedia autentikasi.
           </p>
         </details>
       </div>

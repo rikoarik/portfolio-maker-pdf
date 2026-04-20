@@ -3,6 +3,10 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ProjectResponse } from "@/lib/api";
 import type { UseMutationResult } from "@tanstack/react-query";
+import {
+  persistCachedProjectDraft,
+  updateCachedProjectDraft,
+} from "@/components/workspace/workspace-draft-helpers";
 
 type Props = {
   qc: QueryClient;
@@ -88,24 +92,17 @@ export function ScreenDraftsEditor({
                     placeholder="Judul layar..."
                     onChange={(e) => {
                       const title = e.target.value;
-                      qc.setQueryData(
-                        ["project", projectId],
-                        (old: ProjectResponse | undefined) => {
-                          if (!old) return old;
-                          const screens = [...old.draft.screens];
-                          screens[sci] = { ...screens[sci], title };
-                          return {
-                            ...old,
-                            draft: { ...old.draft, screens },
-                          };
-                        },
-                      );
+                      updateCachedProjectDraft(qc, projectId, (draft) => {
+                        const screens = [...draft.screens];
+                        screens[sci] = { ...screens[sci], title };
+                        return {
+                          ...draft,
+                          screens,
+                        };
+                      });
                     }}
                     onBlur={() => {
-                      const d = qc.getQueryData(["project", projectId]) as
-                        | ProjectResponse
-                        | undefined;
-                      if (d) saveDraft.mutate(d.draft);
+                      persistCachedProjectDraft(qc, projectId, saveDraft);
                     }}
                   />
                 </div>
@@ -122,24 +119,17 @@ export function ScreenDraftsEditor({
                         .split("\n")
                         .map((x) => x.trim())
                         .filter(Boolean);
-                      qc.setQueryData(
-                        ["project", projectId],
-                        (old: ProjectResponse | undefined) => {
-                          if (!old) return old;
-                          const screens = [...old.draft.screens];
-                          screens[sci] = { ...screens[sci], bullets };
-                          return {
-                            ...old,
-                            draft: { ...old.draft, screens },
-                          };
-                        },
-                      );
+                      updateCachedProjectDraft(qc, projectId, (draft) => {
+                        const screens = [...draft.screens];
+                        screens[sci] = { ...screens[sci], bullets };
+                        return {
+                          ...draft,
+                          screens,
+                        };
+                      });
                     }}
                     onBlur={() => {
-                      const d = qc.getQueryData(["project", projectId]) as
-                        | ProjectResponse
-                        | undefined;
-                      if (d) saveDraft.mutate(d.draft);
+                      persistCachedProjectDraft(qc, projectId, saveDraft);
                     }}
                   />
                 </div>
@@ -153,24 +143,17 @@ export function ScreenDraftsEditor({
                     placeholder="Catatan tambahan..."
                     onChange={(e) => {
                       const notes = e.target.value;
-                      qc.setQueryData(
-                        ["project", projectId],
-                        (old: ProjectResponse | undefined) => {
-                          if (!old) return old;
-                          const screens = [...old.draft.screens];
-                          screens[sci] = { ...screens[sci], notes };
-                          return {
-                            ...old,
-                            draft: { ...old.draft, screens },
-                          };
-                        },
-                      );
+                      updateCachedProjectDraft(qc, projectId, (draft) => {
+                        const screens = [...draft.screens];
+                        screens[sci] = { ...screens[sci], notes };
+                        return {
+                          ...draft,
+                          screens,
+                        };
+                      });
                     }}
                     onBlur={() => {
-                      const d = qc.getQueryData(["project", projectId]) as
-                        | ProjectResponse
-                        | undefined;
-                      if (d) saveDraft.mutate(d.draft);
+                      persistCachedProjectDraft(qc, projectId, saveDraft);
                     }}
                   />
                 </div>

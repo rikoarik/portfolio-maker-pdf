@@ -33,6 +33,6 @@ export async function POST() {
   return NextResponse.json({
     ok: true,
     message:
-      "Data aplikasi Anda sudah dihapus. Jika ingin menutup akun Supabase sepenuhnya, lakukan dari dashboard auth.",
+      "Data aplikasi Anda sudah dihapus dari Portfolio Maker dan sesi Anda sudah ditutup. Akun autentikasi Supabase di level penyedia login mungkin masih ada.",
   });
 }

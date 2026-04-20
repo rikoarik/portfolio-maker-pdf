@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import {
   Document,
-  Image,
+  Image as PdfImage,
   Page,
   StyleSheet,
   Text,
@@ -167,7 +167,7 @@ export function PortfolioPdfDocumentCompact({ title, draft, images }: PortfolioP
                   key={`cover-${img.assetId}`}
                   style={compactStyles.coverThumbCell}
                 >
-                  <Image
+                  <PdfImage
                     style={compactStyles.coverThumbImage}
                     src={img.dataUri}
                   />
@@ -206,7 +206,7 @@ export function PortfolioPdfDocumentCompact({ title, draft, images }: PortfolioP
               <Text style={compactStyles.shotTitle}>
                 {screen?.title || study.title || "Layar"}
               </Text>
-              <Image style={compactStyles.image} src={img.dataUri} />
+              <PdfImage style={compactStyles.image} src={img.dataUri} />
               {(screen?.bullets ?? []).map((b, i) => (
                 <Text key={i} style={compactStyles.bullet}>
                   • {b}
@@ -288,7 +288,7 @@ export function PortfolioPdfDocument({ title, draft, images }: PortfolioPdfProps
             <View style={styles.coverThumbGrid}>
               {images.slice(0, 6).map((img) => (
                 <View key={`cover-${img.assetId}`} style={styles.coverThumbCell}>
-                  <Image style={styles.coverThumbImage} src={img.dataUri} />
+                  <PdfImage style={styles.coverThumbImage} src={img.dataUri} />
                 </View>
               ))}
             </View>
@@ -325,8 +325,7 @@ export function PortfolioPdfDocument({ title, draft, images }: PortfolioPdfProps
               <Text style={styles.shotTitle}>
                 {screen?.title || study.title || "Layar"}
               </Text>
-              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf */}
-              <Image style={styles.image} src={img.dataUri} />
+              <PdfImage style={styles.image} src={img.dataUri} />
               {(screen?.bullets ?? []).map((b, i) => (
                 <Text key={i} style={styles.bullet}>
                   • {b}
@@ -415,8 +414,7 @@ export function MultiProjectPdfDocument({ projects }: MultiProjectPdfProps) {
           return (
             <Page key={`${idx}-${img.assetId}`} size="A4" style={styles.page}>
               <Text style={styles.shotTitle}>{screen?.title || "Layar"}</Text>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image style={styles.image} src={img.dataUri} />
+              <PdfImage style={styles.image} src={img.dataUri} />
               {(screen?.bullets ?? []).map((b, i) => (
                 <Text key={i} style={styles.bullet}>{"• "}{b}</Text>
               ))}
@@ -467,8 +465,7 @@ export function MultiProjectPdfDocumentCompact({ projects }: MultiProjectPdfProp
           return (
             <Page key={`${idx}-${img.assetId}`} size="A4" style={compactStyles.page}>
               <Text style={compactStyles.shotTitle}>{screen?.title || "Layar"}</Text>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image style={compactStyles.image} src={img.dataUri} />
+              <PdfImage style={compactStyles.image} src={img.dataUri} />
               {(screen?.bullets ?? []).map((b, i) => (
                 <Text key={i} style={compactStyles.bullet}>{"• "}{b}</Text>
               ))}

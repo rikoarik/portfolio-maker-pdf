@@ -88,9 +88,14 @@ export function LandingActions() {
           <p className="text-center text-sm font-medium text-red-400">{err}</p>
         </div>
       ) : null}
-      <p className="text-xs text-zinc-500">
-        Proyek tanpa akun tidak tersimpan ke dashboard akun Anda.
-      </p>
+      {!isAuthenticated ? (
+        <div className="w-full max-w-md rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-left backdrop-blur-md">
+          <p className="text-sm font-medium text-amber-200">Mode coba tanpa akun</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+            Proyek tetap bisa dibuat, tetapi tidak akan tersimpan ke dashboard akun Anda dan lebih mudah hilang jika sesi browser berubah.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

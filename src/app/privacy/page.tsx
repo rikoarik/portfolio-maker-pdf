@@ -33,8 +33,8 @@ export default function PrivacyPage() {
         </p>
         <p className="mt-4">
           Data proyek dan screenshot disimpan selama akun aktif, atau sampai Anda
-          menghapus proyek/akun Anda. Fitur ekspor data dan hapus akun tersedia
-          di halaman pengaturan akun.
+          menghapus proyek atau data aplikasi Anda. Fitur ekspor data dan
+          penghapusan data aplikasi tersedia di halaman pengaturan akun.
         </p>
         <p className="mt-4">
           Penggunaan layanan pihak ketiga tunduk pada ketentuan masing-masing

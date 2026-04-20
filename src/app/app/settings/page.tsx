@@ -166,7 +166,10 @@ export default function SettingsPage() {
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-zinc-900">Data akun</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Ekspor salinan data Anda atau hapus akun secara permanen.
+          Ekspor salinan data Anda atau hapus data aplikasi Portfolio Maker dari akun ini.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-amber-700">
+          Penghapusan ini menghapus data aplikasi dan proyek Anda di Portfolio Maker. Identitas login dari penyedia autentikasi masih bisa tetap ada.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -186,7 +189,7 @@ export default function SettingsPage() {
             disabled={deleteMut.isPending}
             onClick={() => {
               const ok = window.confirm(
-                "Hapus akun dan semua proyek Anda? Tindakan ini tidak bisa dibatalkan.",
+                "Hapus semua data aplikasi Portfolio Maker dan proyek Anda? Tindakan ini tidak bisa dibatalkan.",
               );
               if (!ok) return;
               setErr(null);
@@ -195,7 +198,7 @@ export default function SettingsPage() {
             }}
             className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
           >
-            {deleteMut.isPending ? "Menghapus…" : "Hapus akun"}
+            {deleteMut.isPending ? "Menghapus…" : "Hapus data aplikasi"}
           </button>
           <Link
             href="/help"

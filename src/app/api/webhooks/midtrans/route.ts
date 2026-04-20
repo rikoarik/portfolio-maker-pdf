@@ -58,8 +58,7 @@ export async function POST(req: Request) {
         payload: body as unknown as Prisma.InputJsonValue,
       },
     });
-  } catch (e) {
-    // If duplicate (idempotent), just acknowledge
+  } catch {
     return NextResponse.json({ received: true, duplicate: true });
   }
 

@@ -160,19 +160,76 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Social proof */}
       <section className="relative z-10 mx-auto w-full max-w-4xl px-6 pb-24">
-        <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-20">
-          {[
-            { value: "1,200+", label: "Portofolio dibuat" },
-            { value: "98%", label: "Kepuasan pengguna" },
-            { value: "< 5 mnt", label: "Waktu rata-rata" },
-          ].map((s, i) => (
-            <div key={i} className="animate-fade-in-up text-center" style={{ animationDelay: `${i * 80}ms` }}>
-              <p className="text-3xl font-bold tracking-tight text-white">{s.value}</p>
-              <p className="mt-1 text-xs text-zinc-600 uppercase tracking-wider">{s.label}</p>
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-6 sm:p-8">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Hasil yang Anda dapatkan
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                Dari screenshot mentah jadi narasi proyek yang siap dipoles dan diekspor.
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+                Fokusnya bukan sekadar upload gambar, tapi membantu Anda merapikan problem, solusi, impact, dan poin fitur agar lebih enak dibaca recruiter atau client.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs text-zinc-300">
+                {[
+                  "Ringkasan proyek otomatis",
+                  "Poin fitur per layar",
+                  "Narrative problem-solution-impact",
+                  "Ekspor PDF siap kirim",
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-white/[0.08] bg-white/[0.04] px-3 py-1.5"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
-          ))}
+
+            <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-zinc-950/80 p-4 shadow-xl shadow-black/30">
+              <div className="flex items-center justify-between border-b border-white/[0.05] pb-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">Preview output</p>
+                  <p className="text-xs text-zinc-500">Apa yang akan tersusun setelah analisis</p>
+                </div>
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
+                  Draft AI
+                </span>
+              </div>
+              <div className="mt-4 space-y-3 text-sm text-zinc-300">
+                <div className="rounded-xl border border-white/[0.05] bg-white/[0.03] p-3">
+                  <p className="text-xs uppercase tracking-wide text-zinc-500">Project summary</p>
+                  <p className="mt-1 text-sm text-zinc-200">
+                    Platform booking servis dengan alur reservasi, pelacakan status, dan notifikasi yang lebih ringkas untuk pengguna.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    ["Problem", "User sulit memantau progres setelah booking."],
+                    ["Solution", "Dashboard dan status servis dibuat lebih jelas per langkah."],
+                    ["Impact", "Komunikasi manual berkurang dan alur lebih mudah dipahami."],
+                  ].map(([title, body]) => (
+                    <div key={title} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+                      <p className="text-xs uppercase tracking-wide text-zinc-500">{title}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-300">{body}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3">
+                  <p className="text-xs uppercase tracking-wide text-indigo-200">Feature bullets</p>
+                  <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-indigo-50/90">
+                    <li>• Upload screenshot dan grouping per flow</li>
+                    <li>• Draft copy bisa diedit ulang sebelum export</li>
+                    <li>• PDF akhir lebih rapi untuk portfolio case study</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

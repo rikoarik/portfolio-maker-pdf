@@ -6,7 +6,12 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import type { StorageAdapter } from "@/lib/storage/types";
+import {
+  StorageConfigurationError,
+  StorageObjectNotFoundError,
+  StorageProviderError,
+  type StorageAdapter,
+} from "@/lib/storage/types";
 
 function client(): S3Client {
   const endpoint = process.env.S3_ENDPOINT;
@@ -25,9 +30,24 @@ function client(): S3Client {
 }
 
 function bucket(): string {
-  const b = process.env.S3_BUCKET;
-  if (!b) throw new Error("S3_BUCKET is not set");
+  const b = process.env.S3_BUCKET?.trim();
+  if (!b) {
+    throw new StorageConfigurationError(
+      "s3",
+      "Konfigurasi S3 belum lengkap. Lengkapi env ini: S3_BUCKET.",
+      ["S3_BUCKET"],
+    );
+  }
   return b;
+}
+
+function isMissingObjectError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === "NoSuchKey" ||
+    error.message.includes("NoSuchKey") ||
+    error.message.includes("NotFound")
+  );
 }
 
 export function createS3StorageAdapter(): StorageAdapter {
@@ -40,61 +60,107 @@ export function createS3StorageAdapter(): StorageAdapter {
     },
 
     async put(key: string, data: Buffer) {
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: b,
-          Key: key.replace(/\\/g, "/"),
-          Body: data,
-        }),
-      );
+      try {
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: b,
+            Key: key.replace(/\\/g, "/"),
+            Body: data,
+          }),
+        );
+      } catch (e) {
+        throw new StorageProviderError(
+          "s3",
+          "put",
+          "Gagal menulis file ke S3 storage.",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
     },
 
     async get(key: string) {
-      const out = await s3.send(
-        new GetObjectCommand({
-          Bucket: b,
-          Key: key.replace(/\\/g, "/"),
-        }),
-      );
-      const body = out.Body;
-      if (!body) throw new Error("Empty S3 body");
-      return Buffer.from(await body.transformToByteArray());
+      try {
+        const out = await s3.send(
+          new GetObjectCommand({
+            Bucket: b,
+            Key: key.replace(/\\/g, "/"),
+          }),
+        );
+        const body = out.Body;
+        if (!body) {
+          throw new StorageProviderError(
+            "s3",
+            "get",
+            "Body file dari S3 kosong.",
+          );
+        }
+        return Buffer.from(await body.transformToByteArray());
+      } catch (e) {
+        if (isMissingObjectError(e)) {
+          throw new StorageObjectNotFoundError("s3", key);
+        }
+        if (e instanceof StorageProviderError) throw e;
+        throw new StorageProviderError(
+          "s3",
+          "get",
+          "Gagal membaca file dari S3 storage.",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
     },
 
     async deleteObject(key: string) {
-      const Key = key.replace(/\\/g, "/");
-      await s3.send(
-        new DeleteObjectCommand({
-          Bucket: b,
-          Key,
-        }),
-      );
+      try {
+        const Key = key.replace(/\\/g, "/");
+        await s3.send(
+          new DeleteObjectCommand({
+            Bucket: b,
+            Key,
+          }),
+        );
+      } catch (e) {
+        throw new StorageProviderError(
+          "s3",
+          "deleteObject",
+          "Gagal menghapus file dari S3 storage.",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
     },
 
     async deletePrefix(prefix: string) {
       const p = prefix.replace(/\\/g, "/").replace(/\/$/, "");
       let token: string | undefined;
-      do {
-        const list = await s3.send(
-          new ListObjectsV2Command({
-            Bucket: b,
-            Prefix: p + "/",
-            ContinuationToken: token,
-          }),
-        );
-        const keys = (list.Contents ?? [])
-          .map((o) => o.Key)
-          .filter((k): k is string => !!k);
-        if (keys.length) {
-          await s3.send(
-            new DeleteObjectsCommand({
+      try {
+        do {
+          const list = await s3.send(
+            new ListObjectsV2Command({
               Bucket: b,
-              Delete: { Objects: keys.map((Key) => ({ Key })) },
+              Prefix: p + "/",
+              ContinuationToken: token,
             }),
           );
-        }
-        token = list.IsTruncated ? list.NextContinuationToken : undefined;
-      } while (token);
+          const keys = (list.Contents ?? [])
+            .map((o) => o.Key)
+            .filter((k): k is string => !!k);
+          if (keys.length) {
+            await s3.send(
+              new DeleteObjectsCommand({
+                Bucket: b,
+                Delete: { Objects: keys.map((Key) => ({ Key })) },
+              }),
+            );
+          }
+          token = list.IsTruncated ? list.NextContinuationToken : undefined;
+        } while (token);
+      } catch (e) {
+        throw new StorageProviderError(
+          "s3",
+          "deletePrefix",
+          "Gagal menghapus prefix dari S3 storage.",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
     },
   };
 }

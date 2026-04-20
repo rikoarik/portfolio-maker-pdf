@@ -7,10 +7,15 @@ import {
 } from "@/lib/constants";
 import { jsonError } from "@/lib/http";
 import {
+  deleteUploadFile,
   StorageNotConfiguredForServerlessError,
   storageKeyForProject,
   writeUploadFile,
 } from "@/lib/storage";
+import {
+  StorageConfigurationError,
+  StorageProviderError,
+} from "@/lib/storage/types";
 import { clientKeyFromRequest, rateLimit } from "@/lib/rate-limit";
 import { RATE_LIMIT_UPLOAD } from "@/lib/constants";
 import { getRequestId } from "@/lib/api-context";
@@ -55,6 +60,35 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         extra: { reason: "storage_unconfigured" },
       });
       return jsonError(503, e.code, e.message);
+    }
+    if (e instanceof StorageConfigurationError) {
+      logApi("error", "upload_failed", {
+        requestId,
+        path: "POST screenshots",
+        extra: {
+          reason: e.code,
+          provider: e.provider,
+          missingEnv: e.missingEnv.join(","),
+        },
+      });
+      return jsonError(503, e.code, e.message);
+    }
+    if (e instanceof StorageProviderError) {
+      logApi("error", "upload_failed", {
+        requestId,
+        path: "POST screenshots",
+        extra: {
+          reason: "storage_write_failed",
+          provider: e.provider,
+          operation: e.operation,
+          message: e.causeMessage?.slice(0, 300),
+        },
+      });
+      return jsonError(
+        503,
+        "storage_write_failed",
+        "Gagal menyimpan screenshot ke storage. Cek konfigurasi storage atau coba lagi.",
+      );
     }
     const msg = e instanceof Error ? e.message : String(e);
     logApi("error", "upload_failed", {
@@ -203,26 +237,31 @@ async function handlePostScreenshots(
     const storageKey = storageKeyForProject(projectId, ext);
     await writeUploadFile(storageKey, buf);
 
-    const asset = await prisma.screenshotAsset.create({
-      data: {
-        projectId,
-        sortOrder: sortBase,
-        storageKey,
-        mime,
-        width: width ?? null,
-        height: height ?? null,
-        analysisStatus: "pending",
-      },
-    });
-    sortBase += 1;
+    try {
+      const asset = await prisma.screenshotAsset.create({
+        data: {
+          projectId,
+          sortOrder: sortBase,
+          storageKey,
+          mime,
+          width: width ?? null,
+          height: height ?? null,
+          analysisStatus: "pending",
+        },
+      });
+      sortBase += 1;
 
-    const origin = new URL(req.url).origin;
-    created.push({
-      id: asset.id,
-      sortOrder: asset.sortOrder,
-      mime: asset.mime,
-      previewUrl: `${origin}/api/v1/projects/${projectId}/screenshots/${asset.id}/file`,
-    });
+      const origin = new URL(req.url).origin;
+      created.push({
+        id: asset.id,
+        sortOrder: asset.sortOrder,
+        mime: asset.mime,
+        previewUrl: `${origin}/api/v1/projects/${projectId}/screenshots/${asset.id}/file`,
+      });
+    } catch (e) {
+      await deleteUploadFile(storageKey).catch(() => undefined);
+      throw e;
+    }
   }
 
   logApi("info", "upload_succeeded", {
