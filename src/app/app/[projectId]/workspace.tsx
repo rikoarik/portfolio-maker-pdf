@@ -457,8 +457,8 @@ export function Workspace({ projectId }: { projectId: string }) {
       {step === 3 && (
         <ExportStep
           projectTitle={project!.title}
-          projectSummary={draft.projectSummary}
-          techStack={draft.techStack}
+          draft={draft}
+          screenshots={project!.screenshots}
           pdfTemplate={pdfTemplate}
           setPdfTemplate={setPdfTemplate}
           pdfMut={pdfMut}

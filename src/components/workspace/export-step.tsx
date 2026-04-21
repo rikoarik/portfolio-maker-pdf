@@ -1,10 +1,13 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { UseMutationResult } from "@tanstack/react-query";
+import type { DraftPayload, ProjectResponse } from "@/lib/api";
+import { buildPortfolioCoverModel } from "@/lib/pdf/portfolio-cover";
 
 type ExportStepProps = {
   projectTitle: string;
-  projectSummary: string;
-  techStack: string[];
+  draft: DraftPayload;
+  screenshots: ProjectResponse["screenshots"];
   pdfTemplate: "default" | "compact";
   setPdfTemplate: (value: "default" | "compact") => void;
   pdfMut: UseMutationResult<Blob, unknown, void, unknown>;
@@ -17,10 +20,148 @@ type ExportStepProps = {
   onResetToUpload: () => void;
 };
 
+function ExportCoverPreview({
+  projectTitle,
+  draft,
+  screenshots,
+  pdfTemplate,
+}: {
+  projectTitle: string;
+  draft: DraftPayload;
+  screenshots: ProjectResponse["screenshots"];
+  pdfTemplate: "default" | "compact";
+}) {
+  const cover = buildPortfolioCoverModel({
+    title: projectTitle,
+    draft,
+    images: screenshots.map((screenshot) => ({
+      assetId: screenshot.id,
+      src: screenshot.previewUrl,
+    })),
+  });
+  const isCompact = pdfTemplate === "compact";
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="mx-auto w-full max-w-[720px] rounded-[28px] border border-zinc-200 bg-zinc-200/70 p-3 shadow-sm">
+        <div
+          className={`mx-auto aspect-[1/1.414] w-full rounded-[20px] border border-zinc-200 bg-white text-zinc-900 shadow-inner ${
+            isCompact ? "max-w-[460px] p-6 text-[11px] leading-[1.35]" : "max-w-[560px] p-10 text-[13px] leading-[1.4]"
+          }`}
+        >
+          <h3 className={isCompact ? "mb-2 text-[16px] font-bold" : "mb-3 text-[22px] font-bold"}>
+            {cover.title}
+          </h3>
+          {cover.roleFocus ? <p className="mb-2">Fokus: {cover.roleFocus}</p> : null}
+          {cover.highlights.length > 0 ? (
+            <section>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Sorotan
+              </h4>
+              <ul className={isCompact ? "space-y-0.5" : "space-y-1"}>
+                {cover.highlights.map((highlight, index) => (
+                  <li key={index} className="ml-3 list-disc">
+                    {highlight}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {cover.showNarrativeBlocks ? (
+            <section>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Problem
+              </h4>
+              <p>{cover.problemSummary}</p>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Solution
+              </h4>
+              <p>{cover.solutionSummary}</p>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Impact
+              </h4>
+              <p>{cover.impactSummary}</p>
+            </section>
+          ) : null}
+          {cover.sections.length > 0 ? (
+            <section>
+              {cover.sections.map((section) => (
+                <div key={section.id} className={isCompact ? "mt-2" : "mt-3"}>
+                  <h4 className={isCompact ? "mb-1 text-[11px] font-bold" : "mb-1.5 text-[14px] font-bold"}>
+                    {section.label}
+                  </h4>
+                  <p className="whitespace-pre-wrap">{section.content}</p>
+                </div>
+              ))}
+            </section>
+          ) : null}
+          <section>
+            <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+              Ringkasan
+            </h4>
+            <p className="whitespace-pre-wrap">{cover.projectSummary}</p>
+          </section>
+          <section>
+            <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+              Tech stack
+            </h4>
+            <p>{cover.techStackText}</p>
+          </section>
+          {cover.showStudies ? (
+            <section>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Bab / studi kasus
+              </h4>
+              <ul className={isCompact ? "space-y-0.5" : "space-y-1"}>
+                {cover.studies.map((study, index) => (
+                  <li key={study.id}>
+                    {index + 1}. {study.title}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {cover.images.length > 0 ? (
+            <section>
+              <h4 className={isCompact ? "mb-1 mt-2 text-[11px] font-bold" : "mb-1.5 mt-3 text-[14px] font-bold"}>
+                Pratinjau screenshot
+              </h4>
+              <div className="grid grid-cols-2 gap-2">
+                {cover.images.map((image) => (
+                  <div
+                    key={image.assetId}
+                    className={`relative overflow-hidden rounded border border-zinc-200 bg-zinc-50 ${
+                      isCompact ? "min-h-[84px]" : "min-h-[124px]"
+                    }`}
+                  >
+                    <Image
+                      src={image.src}
+                      alt=""
+                      fill
+                      unoptimized
+                      sizes={isCompact ? "220px" : "280px"}
+                      className="object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+              {cover.moreImagesCount > 0 ? (
+                <p className={isCompact ? "mt-1 text-[8px] text-zinc-600" : "mt-1.5 text-[9px] text-zinc-600"}>
+                  +{cover.moreImagesCount} screenshot lainnya di halaman berikutnya.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ExportStep({
   projectTitle,
-  projectSummary,
-  techStack,
+  draft,
+  screenshots,
   pdfTemplate,
   setPdfTemplate,
   pdfMut,
@@ -39,23 +180,14 @@ export function ExportStep({
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </span>
-          Pratinjau
+          Pratinjau export
         </h2>
-        <div className="w-full rounded-xl border border-zinc-100 bg-zinc-50/80 p-6 shadow-inner">
-          <h3 className="text-lg font-bold text-zinc-900">{projectTitle || "Portfolio project"}</h3>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-600">{projectSummary || "—"}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {techStack.length > 0 ? (
-              techStack.map((tech, index) => (
-                <span key={index} className="rounded-md border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
-                  {tech}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs text-zinc-400">Belum ada tech stack</span>
-            )}
-          </div>
-        </div>
+        <ExportCoverPreview
+          projectTitle={projectTitle}
+          draft={draft}
+          screenshots={screenshots}
+          pdfTemplate={pdfTemplate}
+        />
       </section>
 
       <section className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-6 shadow-sm">

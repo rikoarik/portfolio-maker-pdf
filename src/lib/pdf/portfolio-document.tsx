@@ -7,11 +7,8 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import {
-  getCaseStudiesForPdf,
-  type DraftPayload,
-  type ScreenDraft,
-} from "@/lib/draft";
+import { getCaseStudiesForPdf, type DraftPayload, type ScreenDraft } from "@/lib/draft";
+import { buildPortfolioCoverModel } from "@/lib/pdf/portfolio-cover";
 
 const styles = StyleSheet.create({
   page: {
@@ -62,14 +59,6 @@ function screenForAsset(draft: DraftPayload, assetId: string): ScreenDraft | und
   return draft.screens.find((s) => s.assetId === assetId);
 }
 
-function hasNarrativeBlocks(draft: DraftPayload): boolean {
-  return !!(
-    draft.problemSummary?.trim() ||
-    draft.solutionSummary?.trim() ||
-    draft.impactSummary?.trim()
-  );
-}
-
 const compactStyles = StyleSheet.create({
   page: {
     padding: 24,
@@ -104,79 +93,82 @@ export function PortfolioPdfDocumentCompact({ title, draft, images }: PortfolioP
   const studies = getCaseStudiesForPdf(draft);
   const skipStudyIntro = studies.length === 1 && studies[0].id === "default";
   const byAsset = new Map(images.map((i) => [i.assetId, i]));
+  const cover = buildPortfolioCoverModel({
+    title,
+    draft,
+    images: images.map((image) => ({ assetId: image.assetId, src: image.dataUri })),
+  });
 
   return (
     <Document>
       <Page size="A4" style={compactStyles.page}>
-        <Text style={compactStyles.title}>{title || "Portfolio project"}</Text>
-        {draft.roleFocus ? (
-          <Text style={compactStyles.summary}>Fokus: {draft.roleFocus}</Text>
+        <Text style={compactStyles.title}>{cover.title}</Text>
+        {cover.roleFocus ? (
+          <Text style={compactStyles.summary}>Fokus: {cover.roleFocus}</Text>
         ) : null}
-        {(draft.highlights?.length ?? 0) > 0 ? (
+        {cover.highlights.length > 0 ? (
           <>
             <Text style={compactStyles.heading}>Sorotan</Text>
-            {(draft.highlights ?? []).map((h, i) => (
+            {cover.highlights.map((highlight, i) => (
               <Text key={i} style={compactStyles.bullet}>
-                • {h}
+                • {highlight}
               </Text>
             ))}
           </>
         ) : null}
-        {hasNarrativeBlocks(draft) ? (
+        {cover.showNarrativeBlocks ? (
           <>
             <Text style={compactStyles.heading}>Problem</Text>
-            <Text style={compactStyles.summary}>{draft.problemSummary || "—"}</Text>
+            <Text style={compactStyles.summary}>{cover.problemSummary}</Text>
             <Text style={compactStyles.heading}>Solution</Text>
-            <Text style={compactStyles.summary}>{draft.solutionSummary || "—"}</Text>
+            <Text style={compactStyles.summary}>{cover.solutionSummary}</Text>
             <Text style={compactStyles.heading}>Impact</Text>
-            <Text style={compactStyles.summary}>{draft.impactSummary || "—"}</Text>
+            <Text style={compactStyles.summary}>{cover.impactSummary}</Text>
           </>
         ) : null}
-        {(draft.sections?.length ?? 0) > 0 ? (
+        {cover.sections.length > 0 ? (
           <>
-            {(draft.sections ?? []).map((sec, i) => (
-              <View key={i} wrap={false}>
-                <Text style={compactStyles.heading}>{sec.label || "Bagian"}</Text>
-                <Text style={compactStyles.summary}>{sec.content || "—"}</Text>
+            {cover.sections.map((section) => (
+              <View key={section.id} wrap={false}>
+                <Text style={compactStyles.heading}>{section.label}</Text>
+                <Text style={compactStyles.summary}>{section.content}</Text>
               </View>
             ))}
           </>
         ) : null}
         <Text style={compactStyles.heading}>Ringkasan</Text>
-        <Text style={compactStyles.summary}>{draft.projectSummary || "—"}</Text>
+        <Text style={compactStyles.summary}>{cover.projectSummary}</Text>
         <Text style={compactStyles.heading}>Tech stack</Text>
-        <Text style={compactStyles.tech}>
-          {draft.techStack.length ? draft.techStack.join(", ") : "—"}
-        </Text>
-        {studies.length > 1 ? (
+        <Text style={compactStyles.tech}>{cover.techStackText}</Text>
+        {cover.showStudies ? (
           <>
             <Text style={compactStyles.heading}>Bab / studi kasus</Text>
-            {studies.map((s, i) => (
-              <Text key={s.id} style={compactStyles.bullet}>
-                {i + 1}. {s.title || "Tanpa judul"}
+            {cover.studies.map((study, i) => (
+              <Text key={study.id} style={compactStyles.bullet}>
+                {i + 1}. {study.title}
               </Text>
             ))}
           </>
         ) : null}
-        {images.length > 0 ? (
+        {cover.images.length > 0 ? (
           <>
             <Text style={compactStyles.heading}>Pratinjau screenshot</Text>
             <View style={compactStyles.coverThumbGrid}>
-              {images.slice(0, 6).map((img) => (
+              {cover.images.map((image) => (
                 <View
-                  key={`cover-${img.assetId}`}
+                  key={`cover-${image.assetId}`}
                   style={compactStyles.coverThumbCell}
                 >
                   <PdfImage
                     style={compactStyles.coverThumbImage}
-                    src={img.dataUri}
+                    src={image.src}
                   />
                 </View>
               ))}
             </View>
-            {images.length > 6 ? (
+            {cover.moreImagesCount > 0 ? (
               <Text style={compactStyles.coverMoreNote}>
-                +{images.length - 6} screenshot lainnya di halaman berikutnya.
+                +{cover.moreImagesCount} screenshot lainnya di halaman berikutnya.
               </Text>
             ) : null}
           </>
@@ -228,73 +220,76 @@ export function PortfolioPdfDocument({ title, draft, images }: PortfolioPdfProps
   const studies = getCaseStudiesForPdf(draft);
   const skipStudyIntro = studies.length === 1 && studies[0].id === "default";
   const byAsset = new Map(images.map((i) => [i.assetId, i]));
+  const cover = buildPortfolioCoverModel({
+    title,
+    draft,
+    images: images.map((image) => ({ assetId: image.assetId, src: image.dataUri })),
+  });
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>{title || "Portfolio project"}</Text>
-        {draft.roleFocus ? (
-          <Text style={styles.summary}>Fokus: {draft.roleFocus}</Text>
+        <Text style={styles.title}>{cover.title}</Text>
+        {cover.roleFocus ? (
+          <Text style={styles.summary}>Fokus: {cover.roleFocus}</Text>
         ) : null}
-        {(draft.highlights?.length ?? 0) > 0 ? (
+        {cover.highlights.length > 0 ? (
           <>
             <Text style={styles.heading}>Sorotan</Text>
-            {(draft.highlights ?? []).map((h, i) => (
+            {cover.highlights.map((highlight, i) => (
               <Text key={i} style={styles.bullet}>
-                • {h}
+                • {highlight}
               </Text>
             ))}
           </>
         ) : null}
-        {hasNarrativeBlocks(draft) ? (
+        {cover.showNarrativeBlocks ? (
           <>
             <Text style={styles.heading}>Problem</Text>
-            <Text style={styles.summary}>{draft.problemSummary || "—"}</Text>
+            <Text style={styles.summary}>{cover.problemSummary}</Text>
             <Text style={styles.heading}>Solution</Text>
-            <Text style={styles.summary}>{draft.solutionSummary || "—"}</Text>
+            <Text style={styles.summary}>{cover.solutionSummary}</Text>
             <Text style={styles.heading}>Impact</Text>
-            <Text style={styles.summary}>{draft.impactSummary || "—"}</Text>
+            <Text style={styles.summary}>{cover.impactSummary}</Text>
           </>
         ) : null}
-        {(draft.sections?.length ?? 0) > 0 ? (
+        {cover.sections.length > 0 ? (
           <>
-            {(draft.sections ?? []).map((sec, i) => (
-              <View key={i} wrap={false}>
-                <Text style={styles.heading}>{sec.label || "Bagian"}</Text>
-                <Text style={styles.summary}>{sec.content || "—"}</Text>
+            {cover.sections.map((section) => (
+              <View key={section.id} wrap={false}>
+                <Text style={styles.heading}>{section.label}</Text>
+                <Text style={styles.summary}>{section.content}</Text>
               </View>
             ))}
           </>
         ) : null}
         <Text style={styles.heading}>Ringkasan</Text>
-        <Text style={styles.summary}>{draft.projectSummary || "—"}</Text>
+        <Text style={styles.summary}>{cover.projectSummary}</Text>
         <Text style={styles.heading}>Tech stack</Text>
-        <Text style={styles.tech}>
-          {draft.techStack.length ? draft.techStack.join(", ") : "—"}
-        </Text>
-        {studies.length > 1 ? (
+        <Text style={styles.tech}>{cover.techStackText}</Text>
+        {cover.showStudies ? (
           <>
             <Text style={styles.heading}>Bab / studi kasus</Text>
-            {studies.map((s, i) => (
-              <Text key={s.id} style={styles.bullet}>
-                {i + 1}. {s.title || "Tanpa judul"}
+            {cover.studies.map((study, i) => (
+              <Text key={study.id} style={styles.bullet}>
+                {i + 1}. {study.title}
               </Text>
             ))}
           </>
         ) : null}
-        {images.length > 0 ? (
+        {cover.images.length > 0 ? (
           <>
             <Text style={styles.heading}>Pratinjau screenshot</Text>
             <View style={styles.coverThumbGrid}>
-              {images.slice(0, 6).map((img) => (
-                <View key={`cover-${img.assetId}`} style={styles.coverThumbCell}>
-                  <PdfImage style={styles.coverThumbImage} src={img.dataUri} />
+              {cover.images.map((image) => (
+                <View key={`cover-${image.assetId}`} style={styles.coverThumbCell}>
+                  <PdfImage style={styles.coverThumbImage} src={image.src} />
                 </View>
               ))}
             </View>
-            {images.length > 6 ? (
+            {cover.moreImagesCount > 0 ? (
               <Text style={styles.coverMoreNote}>
-                +{images.length - 6} screenshot lainnya di halaman berikutnya.
+                +{cover.moreImagesCount} screenshot lainnya di halaman berikutnya.
               </Text>
             ) : null}
           </>
